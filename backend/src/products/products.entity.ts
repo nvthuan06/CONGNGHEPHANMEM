@@ -1,7 +1,19 @@
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity('products')
 export class Product {
-  id: number;
-  name: string;
-  price: number; // VND
-  imageUrl: string;
-  stock: number;
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'varchar', length: 100 })
+  name!: string;
+
+  @Column({ type: 'int' })
+  price!: number; // VND
+
+  @Column({ type: 'varchar', name: 'image_url' })
+  imageUrl!: string;
+
+  @Column({ type: 'int', default: 0 })
+  stock!: number;
 }
