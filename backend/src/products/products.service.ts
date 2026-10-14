@@ -30,7 +30,7 @@ export class ProductsService implements OnModuleInit {
   async findOne(id: number): Promise<Product> {
     const product = await this.productsRepository.findOneBy({ id });
     if (!product) {
-      throw new NotFoundException(`Product ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy sản phẩm ${id}`);
     }
     return product;
   }
