@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ProductsModule } from './products/products.module.js';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -21,6 +23,11 @@ import { ProductsModule } from './products/products.module.js';
       }),
     }),
     ProductsModule,
+    ServeStaticModule.forRoot({
+      // Chỉ định thư mục chứa ảnh (ví dụ: tạo thư mục tên 'public' ngang hàng với 'src')
+      rootPath: join(import.meta.dirname, '..', 'images'), 
+      serveRoot: '/images', // Đường dẫn trên URL sẽ có dạng http://localhost:3001/images/...
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

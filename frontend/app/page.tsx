@@ -1,11 +1,10 @@
 // ./frontend/app/page.tsx
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Product } from '@/types/product';
 
-// Cấu hình danh sách Size và Topping (theo wireframe Màn hình 2 trong đề bài)
 const sizes = [
   { name: 'S', extraPrice: 0 },
   { name: 'M', extraPrice: 5000 },
@@ -17,33 +16,52 @@ const toppings = [
   { id: 'kem', name: 'Kem', price: 10000 },
 ];
 
-export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // State lưu lựa chọn của người dùng
   const [selectedSize, setSelectedSize] = useState('S');
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
 
+  // Đổi đường dẫn này thành '/product/1' hoặc '/products/1' cho khớp với Backend của bạn
+  const API_URL = 'http://localhost:3001/products/2';
+
   useEffect(() => {
-    // Gọi API Task 2 từ Backend NestJS
-    fetch(`http://localhost:3001/products/${resolvedParams.id}`)
-      .then((res) => res.json())
+    fetch(API_URL)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Gọi sai đường dẫn API (Lỗi ${res.status}). Hãy thử đổi '/products/1' thành '/product/1'`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        console.log('Dữ liệu nhận từ NestJS:', data); // Xem trong F12 -> Console
         setProduct(data);
         setLoading(false);
       })
       .catch((err) => {
         console.error(err);
+        setErrorMsg(err.message || 'Không kết nối được tới Backend (Kiểm tra cổng 3001 hoặc CORS)');
         setLoading(false);
       });
-  }, [resolvedParams.id]);
+  }, []);
 
   if (loading) return <div className="p-8 text-center">Đang tải chi tiết sản phẩm...</div>;
+
+  // Nếu có lỗi sẽ hiện rõ lý do lên màn hình thay vì trắng trang
+  if (errorMsg) {
+    return (
+      <div className="p-8 text-center text-red-600 bg-red-50 border border-red-200 rounded-lg max-w-xl mx-auto mt-6">
+        <p className="font-bold text-lg mb-2">Đã phát hiện lỗi:</p>
+        <p>{errorMsg}</p>
+        <p className="text-sm text-gray-600 mt-2">Đường dẫn đang gọi: {API_URL}</p>
+      </div>
+    );
+  }
+
   if (!product) return <div className="p-8 text-center text-red-500">Không tìm thấy sản phẩm.</div>;
 
-  // Xử lý chọn / bỏ chọn Topping
   const toggleTopping = (toppingId: string) => {
     if (selectedToppings.includes(toppingId)) {
       setSelectedToppings(selectedToppings.filter((id) => id !== toppingId));
@@ -52,13 +70,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  // TÍNH TỔNG TIỀN THEO TÙY CHỌN (Yêu cầu Task 4)
   const sizeExtra = sizes.find((size) => size.name === selectedSize)?.extraPrice || 0;
   const toppingExtra = selectedToppings.reduce((sum, topId) => {
     const item = toppings.find((topping) => topping.id === topId);
     return sum + (item ? item.price : 0);
   }, 0);
-  const totalPrice = product.price + sizeExtra + toppingExtra;
+  const totalPrice = Number(product.price || 0) + sizeExtra + toppingExtra;
 
   return (
     <main className="container mx-auto p-6 max-w-xl">
@@ -68,12 +85,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="bg-white border rounded-xl p-6 shadow-sm">
         <img
-          src={product.imageUrl || 'https://via.placeholder.com/150'}
+          src={`http://localhost:3001${product.imageUrl}`}
           alt={product.name}
-          className="w-full h-56 object-cover rounded-lg mb-4"
+          className="w-full h-auto object-cover rounded-lg mb-4" 
         />
         <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-        <p className="text-gray-500 mb-6">Giá gốc: {product.price?.toLocaleString('vi-VN')} đ</p>
+        <p className="text-gray-500 mb-6">
+          Giá gốc: {Number(product.price || 0).toLocaleString('vi-VN')} đ
+        </p>
 
         {/* 1. Chọn Size */}
         <div className="mb-6">
@@ -118,7 +137,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* 3. Hiển thị Tổng tiền & Nút Thêm vào giỏ */}
+        {/* 3. Hiển thị Tổng tiền */}
         <div className="border-t pt-4 mt-6">
           <div className="flex justify-between items-center mb-4">
             <span className="font-semibold text-lg">Tổng tiền:</span>
@@ -127,7 +146,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </span>
           </div>
           <button
-            onClick={() => alert(`Đã chọn: ${product.name} (Size ${selectedSize}) - Giá: ${totalPrice.toLocaleString('vi-VN')}đ`)}
+            onClick={() =>
+              alert(`Đã chọn: ${product.name} (Size ${selectedSize}) - Giá: ${totalPrice.toLocaleString('vi-VN')}đ`)
+            }
             className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-emerald-700 transition"
           >
             Thêm vào giỏ hàng
