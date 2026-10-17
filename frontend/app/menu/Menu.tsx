@@ -11,7 +11,7 @@ export default function Menu() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(function () {
-    fetch('http://localhost:3000/products')
+    fetch('http://localhost:3001/products')
       .then(async function (response) {
         if (!response.ok) {
           throw new Error(`Lỗi gọi API (${response.status})`);
@@ -47,8 +47,8 @@ export default function Menu() {
   }
 
   return (
-    <main className="container mx-auto p-6 min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Menu cà phê BrewLite</h1>
+    <main className="container mx-auto p-6 min-h-screen bg-black-50">
+      <h1 className="text-3xl font-bold mb-6 text-green-900">Menu cà phê BrewLite</h1>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {products.map(function (item) {
