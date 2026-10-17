@@ -1,9 +1,9 @@
 // ./frontend/app/menu/Menu.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Product } from '@/types/product';
-import { ProductCard } from '@/components/ProductCard';
+import { useEffect, useState } from "react";
+import { Product } from "@/types/product";
+import { ProductCard } from "@/components/product/ProductCard";
 
 export default function Menu() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,7 +11,7 @@ export default function Menu() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(function () {
-    fetch('http://localhost:3001/products')
+    fetch("http://localhost:3001/products")
       .then(async function (response) {
         if (!response.ok) {
           throw new Error(`Lỗi gọi API (${response.status})`);
@@ -24,7 +24,7 @@ export default function Menu() {
       })
       .catch(function (e) {
         console.error(e);
-        setErrorMsg(e.message || 'Không kết nối được tới Backend');
+        setErrorMsg(e.message || "Không kết nối được tới Backend");
         setLoading(false);
       });
   }, []);
@@ -43,13 +43,17 @@ export default function Menu() {
   }
 
   if (products.length === 0) {
-    return <div className="p-8 text-center">Chưa có sản phẩm nào trong menu.</div>;
+    return (
+      <div className="p-8 text-center">Chưa có sản phẩm nào trong menu.</div>
+    );
   }
 
   return (
     <main className="container mx-auto p-6 min-h-screen bg-black-50">
-      <h1 className="text-3xl font-bold mb-6 text-green-900">Menu cà phê BrewLite</h1>
-      
+      <h1 className="text-3xl font-bold mb-6 text-green-900">
+        Menu cà phê BrewLite
+      </h1>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {products.map(function (item) {
           return <ProductCard key={item.id} product={item} />;

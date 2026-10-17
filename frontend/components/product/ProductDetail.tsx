@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Product } from "@/types/product";
 import { sizes, toppings } from "@/types/option";
+import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function ProductDetail({ productID }: { productID: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -12,6 +14,9 @@ export default function ProductDetail({ productID }: { productID: string }) {
 
   const [selectedSize, setSelectedSize] = useState("S");
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+
+  const { addToCart } = useCart();
+  const router = useRouter();
 
   const API_URL = `http://localhost:3001/products/${productID}`;
 
@@ -64,6 +69,26 @@ export default function ProductDetail({ productID }: { productID: string }) {
     return sum + (item ? item.price : 0);
   }, 0);
   const totalPrice = Number(product.price || 0) + sizeExtra + toppingExtra;
+
+  // Thêm vào giỏ
+  function handleAddToCart() {
+    const cartItemId = `${product?.id}-${selectedSize}-${selectedToppings.join("-")}`;
+
+    if (product) {
+      addToCart({
+        cartItemId: cartItemId,
+        productId: product.id,
+        name: product.name,
+        price: totalPrice, // totalPrice đã được tính ở đoạn code cũ của bạn
+        size: selectedSize,
+        toppings: selectedToppings,
+        quantity: 1,
+        imageUrl: product.imageUrl,
+      });
+
+      router.push("/cart");
+    }
+  }
 
   return (
     <main className="container mx-auto p-6 max-w-xl">
@@ -125,7 +150,10 @@ export default function ProductDetail({ productID }: { productID: string }) {
               {totalPrice.toLocaleString("vi-VN")} đ
             </span>
           </div>
-          <button className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold">
+          <button
+            onClick={handleAddToCart}
+            className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold"
+          >
             Thêm vào giỏ hàng
           </button>
         </div>

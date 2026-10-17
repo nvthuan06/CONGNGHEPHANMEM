@@ -1,7 +1,7 @@
 // ./frontend/components/ProductCard.tsx
 import React from "react";
 import Link from "next/link";
-import { Product } from "../types/product";
+import { Product } from "../../types/product";
 
 interface ProductCardProps {
   product: Product;
