@@ -1,3 +1,4 @@
+// backend/src/products/products.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Product } from './products.entity.js';

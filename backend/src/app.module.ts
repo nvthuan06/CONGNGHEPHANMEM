@@ -1,3 +1,4 @@
+// backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -6,6 +7,7 @@ import { AppService } from './app.service.js';
 import { ProductsModule } from './products/products.module.js';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { OrdersModule } from './orders/orders.module.js';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { join } from 'path';
       }),
     }),
     ProductsModule,
+    OrdersModule,
     ServeStaticModule.forRoot({
       // Chỉ định thư mục chứa ảnh (ví dụ: tạo thư mục tên 'public' ngang hàng với 'src')
       rootPath: join(import.meta.dirname, '..', 'images'), 

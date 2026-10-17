@@ -1,3 +1,4 @@
+// backend/src/products/products.controller.ts
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { ProductsService } from './products.service.js';
 

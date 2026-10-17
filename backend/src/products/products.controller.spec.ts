@@ -1,3 +1,4 @@
+// backend/src/products/products.controller.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProductsController } from './products.controller.js';
