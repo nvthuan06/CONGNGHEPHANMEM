@@ -10,9 +10,9 @@ export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
-  ) {}
+  ) { }
 
-  async create(orderDto: OrderDto) {
+  async create(orderDto: OrderDto, userId: number) {
     let totalAmount = 0;
     const itemsToSave = [];
 
@@ -34,6 +34,7 @@ export class OrdersService {
 
     // 2. Tạo đơn hàng mới trong bộ nhớ tạm
     const newOrder = this.orderRepository.create({
+      userId: userId,  // id người mua, lấy từ JWT đã xác thực
       status: 'PENDING', // Trạng thái mặc định
       total: totalAmount, // Tổng tiền
       items: itemsToSave, // TypeORM sẽ tự động lưu mảng này vào bảng OrderItem nhờ cascade: true
