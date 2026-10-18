@@ -8,6 +8,7 @@ import { ProductsModule } from './products/products.module.js';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { OrdersModule } from './orders/orders.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -26,16 +27,17 @@ import { OrdersModule } from './orders/orders.module.js';
     }),
     ProductsModule,
     OrdersModule,
+    UsersModule,
     ServeStaticModule.forRoot({
       // Chỉ định thư mục chứa ảnh (ví dụ: tạo thư mục tên 'public' ngang hàng với 'src')
-      rootPath: join(import.meta.dirname, '..', 'images'), 
+      rootPath: join(import.meta.dirname, '..', 'images'),
       serveRoot: '/images', // Đường dẫn trên URL sẽ có dạng http://localhost:3001/images/...
     }),
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
 
 /*import { Module } from '@nestjs/common';
 import { createObserveModule } from '@nestjs/observe';
