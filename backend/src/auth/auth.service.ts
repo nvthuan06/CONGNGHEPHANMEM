@@ -3,14 +3,20 @@ import {
     Injectable,
     ConflictException,
     BadRequestException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { JwtService } from '@nestjs/jwt';
+import { LoginDto } from './dto/login.dto.js';
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly usersService: UsersService) { }
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly jwtService: JwtService,
+    ) { }
 
     async register(registerDto: RegisterDto) {
         const email = registerDto.email?.trim().toLowerCase();
@@ -46,4 +52,50 @@ export class AuthService {
             loyaltyPoints: user.loyaltyPoints,
         };
     }
+
+
+    async login(loginDto: LoginDto) {
+        const email = loginDto?.email?.trim().toLowerCase();
+        const password = loginDto?.password;
+
+        if (!email || typeof password !== 'string') {
+            throw new UnauthorizedException(
+                'Email hoặc mật khẩu không chính xác',
+            );
+        }
+
+        // Tìm người dùng, bao gồm passwordHash
+        const user = await this.usersService.findByEmailWithPassword(email);
+
+        if (!user) {
+            throw new UnauthorizedException(
+                'Email hoặc mật khẩu không chính xác',
+            );
+        }
+
+        // So sánh mật khẩu nhập vào với hash trong database
+        const isPasswordValid = await bcrypt.compare(
+            password,
+            user.passwordHash,
+        );
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException(
+                'Email hoặc mật khẩu không chính xác',
+            );
+        }
+
+        // Payload chứa thông tin định danh, không chứa mật khẩu
+        const payload = {
+            sub: user.id,
+            email: user.email,
+        };
+
+        const accessToken = await this.jwtService.signAsync(payload);
+
+        return {
+            access_token: accessToken,
+        };
+    }
+
 }
