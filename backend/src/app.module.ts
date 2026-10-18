@@ -9,6 +9,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { OrdersModule } from './orders/orders.module.js';
 import { UsersModule } from './users/users.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module.js';
     ProductsModule,
     OrdersModule,
     UsersModule,
+    AuthModule,
     ServeStaticModule.forRoot({
       // Chỉ định thư mục chứa ảnh (ví dụ: tạo thư mục tên 'public' ngang hàng với 'src')
       rootPath: join(import.meta.dirname, '..', 'images'),
