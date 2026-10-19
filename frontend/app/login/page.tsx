@@ -59,7 +59,15 @@ export default function LoginPage() {
 
             login(data.access_token);
             setPassword("");
-            router.push("/");
+
+            const redirect = searchParams.get("redirect");
+
+            const destination =
+                redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+                    ? redirect
+                    : "/";
+
+            router.replace(destination);
 
         } catch {
             setError("Không thể kết nối đến Backend.");

@@ -1,4 +1,4 @@
-// ./frontend/context/CartContext.tsx
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
@@ -8,6 +8,7 @@ interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (cartItemId: string) => void;
+  clearCart: () => void;
   totalPrice: number;
 }
 
@@ -48,6 +49,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  // Xóa toàn bộ giỏ hàng sau khi đặt hàng thành công
+  function clearCart() {
+    setCartItems([]);
+  }
+
   // Tính tổng tiền
   let totalPrice = 0;
   for (let i = 0; i < cartItems.length; i++) {
@@ -56,18 +62,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ cartItems, addToCart, removeFromCart, totalPrice }}
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        clearCart,
+        totalPrice,
+      }}
     >
       {children}
     </CartContext.Provider>
   );
 }
 
-// Xuất dữ liệu cho file khác sài
+// Xuất dữ liệu cho file khác sử dụng
 export function useCart() {
   const context = useContext(CartContext);
+
   if (!context) {
     throw new Error("Hàm useCart phải được gọi bên trong thẻ CartProvider");
   }
+
   return context;
 }
