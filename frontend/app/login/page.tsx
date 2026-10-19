@@ -4,12 +4,14 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function LoginPage() {
     const router = useRouter();
+    const { login } = useAuth();
     const searchParams = useSearchParams();
     const registered = searchParams.get("registered") === "1";
 
@@ -55,10 +57,9 @@ export default function LoginPage() {
                 return;
             }
 
-            // Bước 2: Xác nhận JWT được cấp thành công.
-            // Bước 3 sẽ quản lý token và phiên đăng nhập.
-            setSuccess(true);
+            login(data.access_token);
             setPassword("");
+            router.push("/");
 
         } catch {
             setError("Không thể kết nối đến Backend.");
