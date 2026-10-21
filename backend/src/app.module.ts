@@ -10,6 +10,7 @@ import { join } from 'path';
 import { OrdersModule } from './orders/orders.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuthModule } from './auth/auth.module.js';
     OrdersModule,
     UsersModule,
     AuthModule,
+    PaymentsModule,
     ServeStaticModule.forRoot({
       // Chỉ định thư mục chứa ảnh (ví dụ: tạo thư mục tên 'public' ngang hàng với 'src')
       rootPath: join(import.meta.dirname, '..', 'images'),

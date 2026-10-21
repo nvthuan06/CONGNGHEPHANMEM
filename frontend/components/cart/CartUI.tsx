@@ -101,12 +101,7 @@ export default function Cart() {
 
       // Backend tạo đơn hàng thành công
       const order = await response.json();
-
-      clearCart();
-
-      setSuccess(
-        `Đặt hàng thành công! Mã đơn hàng: ${order.id ?? "đã tạo"}`
-      );
+      router.push(`/payments?orderId=${order.id}`);
     } catch {
       setError(
         "Không thể kết nối đến Backend. Vui lòng thử lại."
