@@ -11,4 +11,10 @@ export class PaymentsController {
   async create(@Body() createPaymentDto: CreatePaymentDto) {
     return this.paymentsService.createPayment(createPaymentDto);
   }
+  @Post('sepay-webhook')
+  async sepayWebhook(
+    @Body() body: any,){
+
+    return this.paymentsService.handleSepayWebhook(body);
+  }
 }

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,6 +14,8 @@ import { MockPaymentService } from './mock-payment.service.js';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
@@ -22,7 +25,6 @@ export class PaymentsService {
   ) {}
 
   async createPayment(dto: CreatePaymentDto) {
-    // 1. Tìm đơn hàng trong CSDL
     const order = await this.orderRepo.findOne({
       where: { id: dto.orderId },
     });
@@ -31,14 +33,12 @@ export class PaymentsService {
       throw new NotFoundException(`Không tìm thấy đơn hàng #${dto.orderId}`);
     }
 
-    // 2. Chỉ cho phép thanh toán khi đơn đang ở PENDING hoặc PAYMENT_FAILED (thử lại)
     if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
       throw new BadRequestException(
         `Đơn hàng đang ở trạng thái ${order.status}, không thể thanh toán.`,
       );
     }
 
-    // 3. Gọi cổng thanh toán giả lập với số tiền lấy từ Order trong DB
     const mockResult = await this.mockPaymentService.processPayment(
       order.id,
       order.total,
@@ -46,7 +46,6 @@ export class PaymentsService {
       dto.simulateFail,
     );
 
-    // 4. Lưu thông tin giao dịch vào bảng payments
     const payment = this.paymentRepo.create({
       orderId: order.id,
       amount: order.total,
@@ -56,7 +55,6 @@ export class PaymentsService {
     });
     await this.paymentRepo.save(payment);
 
-    // 5. Cập nhật trạng thái đơn hàng theo kết quả thanh toán
     if (mockResult.success) {
       order.status = 'PAID';
       await this.orderRepo.save(order);
@@ -81,5 +79,70 @@ export class PaymentsService {
         orderStatus: order.status,
       });
     }
+  }
+
+  async handleSepayWebhook(data: any) {
+    this.logger.log(`[SePay Webhook] Nhận dữ liệu: ${JSON.stringify(data)}`);
+
+    const { content, transferAmount, id: transactionId } = data;
+
+    if (!content) {
+      this.logger.warn('[SePay Webhook] Bỏ qua: Nội dung chuyển khoản rỗng');
+      return { success: false, message: 'Nội dung chuyển khoản rỗng' };
+    }
+
+    // 1. Tách orderId từ nội dung chuyển khoản (bắt các mẫu như DH18, DH 18, ORDER18)
+    const match = content.match(/(?:DH|ORDER)\s*(\d+)/i);
+    if (!match) {
+      this.logger.warn(`[SePay Webhook] Bỏ qua: Không tìm thấy cú pháp mã đơn trong "${content}"`);
+      return { success: false, message: 'Nội dung không chứa mã đơn hợp lệ' };
+    }
+
+    const orderId = Number(match[1]);
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      this.logger.error(`[SePay Webhook] Không tìm thấy đơn hàng #${orderId}`);
+      return { success: false, message: `Không tìm thấy đơn hàng #${orderId}` };
+    }
+
+    // 2. Kiểm tra nếu đơn hàng đã được xử lý thanh toán trước đó
+    if (order.status === 'PAID') {
+      this.logger.log(`[SePay Webhook] Đơn hàng #${orderId} đã được thanh toán trước đó`);
+      return { success: true, message: 'Đơn hàng đã thanh toán' };
+    }
+
+    // 3. Đối soát số tiền thanh toán thực tế với tổng tiền đơn hàng
+    const amountReceived = Number(transferAmount);
+    if (amountReceived < Number(order.total)) {
+      this.logger.warn(
+        `[SePay Webhook] Đơn hàng #${orderId} thiếu tiền: Cần ${order.total}, nhận ${amountReceived}`,
+      );
+      return { success: false, message: 'Số tiền thanh toán không đủ' };
+    }
+
+    // 4. Cập nhật trạng thái đơn hàng sang PAID
+    order.status = 'PAID';
+    await this.orderRepo.save(order);
+
+    // 5. Lưu bản ghi thanh toán vào database
+    const payment = this.paymentRepo.create({
+      orderId: order.id,
+      amount: amountReceived,
+      method: 'BANKING',
+      status: 'SUCCESS',
+      idempotencyKey: transactionId ? String(transactionId) : `SEPAY_${Date.now()}`,
+    });
+    await this.paymentRepo.save(payment);
+
+    this.logger.log(`[SePay Webhook] Thanh toán thành công cho đơn hàng #${orderId}`);
+
+    return {
+      success: true,
+      message: 'Xác nhận thanh toán thành công',
+      orderId: order.id,
+    };
   }
 }

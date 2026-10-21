@@ -5,6 +5,9 @@ import {
     Body,
     UseGuards,
     Req,
+    Get,
+    Param,
+    ParseIntPipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { OrdersService } from './orders.service.js';
@@ -34,4 +37,16 @@ export class OrdersController {
 
         return this.ordersService.create(orderDto, userId);
     }
+    @Get(':id')
+    @UseGuards(JwtAuthGuard)
+    findOne(
+        @Param('id', ParseIntPipe) id:number,
+        @Req() request: any,
+    ){
+        const userId = request.user.userId;
+        return this.ordersService.findOne(id, userId);
+
+    }
+
+
 }
