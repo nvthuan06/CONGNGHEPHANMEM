@@ -95,6 +95,8 @@ function PaymentContent() {
         >
           Quay lại Trang chủ
         </Link>
+        <Link href="../HistoryOrders" className="inline-block px-6 py-3 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition"
+         >Lịch sử mua hàng</Link>
       </div>
     );
   }

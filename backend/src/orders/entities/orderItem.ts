@@ -2,6 +2,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { Order } from './order.js';
+import { Product } from '../../products/products.entity.js';
 
 @Entity('order_items')
 export class OrderItem {
@@ -27,4 +28,8 @@ export class OrderItem {
   @ManyToOne(() => Order, (order) => order.items)
   @JoinColumn({ name: 'orderId' })
   order: Relation<Order>;
+
+  @ManyToOne(() => Product)
+  @JoinColumn({ name: 'productId' })
+  product: Relation<Product>;
 }

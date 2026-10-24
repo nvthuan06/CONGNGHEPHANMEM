@@ -101,6 +101,7 @@ export default function Cart() {
 
       // Backend tạo đơn hàng thành công
       const order = await response.json();
+      clearCart();
       router.push(`payments?orderId=${order.id}`);
     } catch {
       setError(
@@ -234,12 +235,13 @@ export default function Cart() {
       </div>
 
       <div className="mt-6 flex justify-between gap-3">
-        <Link
+        <button className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold text-lg disabled:opacity-50">
+          <Link
           href="/"
-          className="px-6 py-3 border rounded-lg hover:bg-gray-100 transition font-medium"
         >
           Tiếp tục mua hàng
         </Link>
+        </button>
 
         <button
           type="button"

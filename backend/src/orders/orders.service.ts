@@ -63,4 +63,18 @@ export class OrdersService {
     })
     return await pd;
   }
+  //Lịch sử đơn hàng
+  async getMyOrders(userid:number){
+    const pd = await this.orderRepository.find({
+      where: {
+        userId:userid
+      },
+      relations: {
+        items:{
+          product:true,
+        }
+      }
+    });
+    return await pd;
+  }
 }

@@ -36,7 +36,14 @@ export class OrdersController {
         const userId = request.user.userId;
 
         return this.ordersService.create(orderDto, userId);
+    }    
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    findAll(@Req() request:AuthenticatedRequest){
+        return this.ordersService.getMyOrders(request.user.userId);
     }
+
+    
     @Get(':id')
     @UseGuards(JwtAuthGuard)
     findOne(
@@ -47,6 +54,8 @@ export class OrdersController {
         return this.ordersService.findOne(id, userId);
 
     }
+
+
 
 
 }

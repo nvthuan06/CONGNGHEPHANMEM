@@ -19,6 +19,7 @@ export default function AuthStatus() {
             {isAuthenticated ? (
                 <>
                     <div className="flex items-center gap-2">
+                        <Link href="../HistoryOrders" className="inline-block px-6 py-3 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition">Lịch sử mua hàng</Link>
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                             <span aria-hidden="true">👤</span>
                         </div>
