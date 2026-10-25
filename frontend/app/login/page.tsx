@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
     const { login } = useAuth();
     const searchParams = useSearchParams();
@@ -176,5 +176,19 @@ export default function LoginPage() {
                 </Link>
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+                    <p className="text-gray-500">Đang tải trang đăng nhập...</p>
+                </main>
+            }
+        >
+            <LoginForm />
+        </Suspense>
     );
 }

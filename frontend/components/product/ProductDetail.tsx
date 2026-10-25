@@ -77,7 +77,7 @@ export default function ProductDetail({ productID }: { productID: string }) {
     if (product) {
       addToCart({
         cartItemId: cartItemId,
-        productId: product.id,
+        productId: String(product.id),
         name: product.name,
         price: totalPrice, // totalPrice đã được tính ở đoạn code cũ của bạn
         size: selectedSize,
