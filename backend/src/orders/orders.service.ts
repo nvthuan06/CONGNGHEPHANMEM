@@ -1,5 +1,5 @@
 // backend/src/orders/orders.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.js';
@@ -54,14 +54,21 @@ export class OrdersService {
 
     return await this.orderRepository.save(newOrder);
   }
-  async findOne(orderId:number, userId:number){
-    const pd = await this.orderRepository.findOne({
+  async findOne(orderId: number, userId: number) {
+    const order = await this.orderRepository.findOne({
       where: {
-        id:orderId,
-        userId:userId
-      }
-    })
-    return await pd;
+        id: orderId,
+        userId: userId,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(
+        `Không tìm thấy đơn hàng #${orderId}`,
+      );
+    }
+
+    return order;
   }
   //Lịch sử đơn hàng
   async getMyOrders(userid:number){
