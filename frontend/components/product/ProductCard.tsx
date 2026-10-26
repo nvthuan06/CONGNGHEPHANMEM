@@ -1,4 +1,4 @@
-// ./frontend/components/ProductCard.tsx
+// ./frontend/components/product/ProductCard.tsx
 import React from "react";
 import Link from "next/link";
 import { Product } from "../../types/product";

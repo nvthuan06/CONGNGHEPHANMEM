@@ -1,5 +1,9 @@
 // backend/src/orders/orders.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.js';
@@ -13,16 +17,14 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-    
-
-  ) { }
+  ) {}
 
   async create(orderDto: OrderDto, userId: number) {
     let totalAmount = 0;
     const itemsToSave = [];
-    for(const item of orderDto.items){
+    for (const item of orderDto.items) {
       const pd = await this.productRepository.findOne({
-        where:{id:item.productId}
+        where: { id: item.productId },
       });
       let sizeExtra = 0;
       const sizeUpper = item.size.trim().toUpperCase();
@@ -41,12 +43,9 @@ export class OrdersService {
       });
     }
 
-
-
-
-    // 2. Tạo đơn hàng mới trong bộ nhớ tạm
+    // Tạo đơn hàng mới trong bộ nhớ tạm
     const newOrder = this.orderRepository.create({
-      userId: userId,  // id người mua, lấy từ JWT đã xác thực
+      userId: userId, // id người mua, lấy từ JWT đã xác thực
       status: 'PENDING', // Trạng thái mặc định
       total: totalAmount, // Tổng tiền
       items: itemsToSave, // TypeORM sẽ tự động lưu mảng này vào bảng OrderItem nhờ cascade: true
@@ -63,24 +62,38 @@ export class OrdersService {
     });
 
     if (!order) {
-      throw new NotFoundException(
-        `Không tìm thấy đơn hàng #${orderId}`,
-      );
+      throw new NotFoundException(`Không tìm thấy đơn hàng #${orderId}`);
     }
 
     return order;
   }
+
+  // Hủy thanh toán
+  async cancelOrder(orderId: number, userId: number) {
+    const order = await this.findOne(orderId, userId);
+
+    // Chỉ cho phép hủy nếu đơn chưa thanh toán thành công
+    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
+      throw new BadRequestException(
+        `Không thể hủy đơn hàng đang ở trạng thái ${order.status}`,
+      );
+    }
+
+    order.status = 'CANCELLED';
+    return await this.orderRepository.save(order);
+  }
+
   //Lịch sử đơn hàng
-  async getMyOrders(userid:number){
+  async getMyOrders(userid: number) {
     const pd = await this.orderRepository.find({
       where: {
-        userId:userid
+        userId: userid,
       },
       relations: {
-        items:{
-          product:true,
-        }
-      }
+        items: {
+          product: true,
+        },
+      },
     });
     return await pd;
   }

@@ -1,4 +1,4 @@
-
+// frontend/app/payments/page.tsx
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
@@ -19,15 +19,51 @@ function PaymentContent() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
 
+  async function handleMockPayment(method: "WALLET" | "CARD") {
+    if (!orderId || !accessToken) return;
+    setIsProcessing(true);
+
+    // Tạo khóa chống trùng lặp độc nhất cho lần bấm này
+    const idempotencyKey = `MOCK_${orderId}_${Date.now()}`;
+
+    try {
+      const res = await fetch(`${apiUrl}/payments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          orderId: Number(orderId),
+          method: method,
+          idempotencyKey: idempotencyKey, // Gửi khóa xuống Backend
+          simulateFail: false, // Đổi thành true nếu bạn muốn test màn hình lỗi chữ thập đỏ
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Thanh toán thất bại");
+      }
+      // Nếu thành công, cơ chế Polling 3s hiện tại của bạn sẽ tự động
+      // lấy trạng thái PAID mới từ DB và chuyển sang màn hình xanh lá!
+    } catch (err: any) {
+      setError("Lỗi kết nối khi thanh toán");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
   // Tài khoản ngân hàng nhận tiền (Test Mode)
   const BANK_ID = "MB";
   const ACCOUNT_NO = "0000000002";
   const ACCOUNT_NAME = "NGUYEN VU THUAN";
 
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
   // Kiểm tra trạng thái đơn hàng từ Backend
   useEffect(() => {
@@ -50,26 +86,21 @@ function PaymentContent() {
 
     async function fetchOrderStatus() {
       try {
-        const response = await fetch(
-          `${apiUrl}/orders/${orderId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-            cache: "no-store",
-          }
-        );
+        const response = await fetch(`${apiUrl}/orders/${orderId}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          cache: "no-store",
+        });
 
         if (response.status === 401) {
           throw new Error(
-            "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại."
+            "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
           );
         }
 
         if (response.status === 403) {
-          throw new Error(
-            "Bạn không có quyền xem đơn hàng này."
-          );
+          throw new Error("Bạn không có quyền xem đơn hàng này.");
         }
 
         if (response.status === 404) {
@@ -78,7 +109,7 @@ function PaymentContent() {
 
         if (!response.ok) {
           throw new Error(
-            "Không thể tải thông tin đơn hàng. Vui lòng thử lại."
+            "Không thể tải thông tin đơn hàng. Vui lòng thử lại.",
           );
         }
 
@@ -99,9 +130,7 @@ function PaymentContent() {
         if (cancelled) return;
 
         setError(
-          err instanceof Error
-            ? err.message
-            : "Đã xảy ra lỗi không xác định."
+          err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.",
         );
         setLoading(false);
       }
@@ -123,9 +152,7 @@ function PaymentContent() {
   if (!orderId) {
     return (
       <div className="p-6 bg-red-50 text-red-700 border border-red-200 rounded-xl text-center">
-        <p className="mb-4">
-          Không tìm thấy mã đơn hàng.
-        </p>
+        <p className="mb-4">Không tìm thấy mã đơn hàng.</p>
         <Link href="/cart" className="underline font-semibold">
           Quay lại giỏ hàng
         </Link>
@@ -172,16 +199,14 @@ function PaymentContent() {
 
     return (
       <div className="p-6 bg-red-50 text-red-700 rounded-xl text-center border border-red-200">
-        <h2 className="text-xl font-bold mb-3">
-          Không thể tải đơn hàng
-        </h2>
+        <h2 className="text-xl font-bold mb-3">Không thể tải đơn hàng</h2>
 
         <p className="mb-5">{error}</p>
 
         {isAuthError ? (
           <Link
             href={`/login?redirect=${encodeURIComponent(
-              `/payments?orderId=${encodeURIComponent(orderId)}`
+              `/payments?orderId=${encodeURIComponent(orderId)}`,
             )}`}
             className="inline-block px-6 py-3 bg-emerald-600 text-white font-bold rounded-lg"
           >
@@ -282,10 +307,10 @@ function PaymentContent() {
         </p>
 
         <Link
-          href="/HistoryOrders"
+          href="/cart"
           className="inline-block px-6 py-3 bg-emerald-600 text-white font-bold rounded-lg"
         >
-          Xem lịch sử đơn hàng
+          Trở lại giỏ hàng
         </Link>
       </div>
     );
@@ -326,6 +351,34 @@ function PaymentContent() {
 
   const qrUrl = `https://qr.sepay.vn/img?${qrParams.toString()}`;
 
+  // Hủy đơn hàng
+  async function handleCancelOrder() {
+    if (!confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
+    if (!orderId || !accessToken) return;
+
+    setIsCancelling(true);
+    try {
+      const res = await fetch(`${apiUrl}/orders/${orderId}/cancel`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Không thể hủy đơn hàng.");
+      }
+
+      // Ép giao diện cập nhật ngay lập tức sang CANCELLED
+      setOrder((prev) => (prev ? { ...prev, status: "CANCELLED" } : null));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
   return (
     <div className="bg-white border rounded-2xl p-6 shadow-sm text-center">
       <h1 className="text-2xl font-bold mb-2 text-gray-800">
@@ -353,16 +406,12 @@ function PaymentContent() {
 
         <div className="flex justify-between gap-3">
           <span className="text-gray-500">Chủ tài khoản:</span>
-          <span className="font-bold text-gray-800">
-            {ACCOUNT_NAME}
-          </span>
+          <span className="font-bold text-gray-800">{ACCOUNT_NAME}</span>
         </div>
 
         <div className="flex justify-between gap-3">
           <span className="text-gray-500">Số tài khoản:</span>
-          <span className="font-bold text-gray-800">
-            {ACCOUNT_NO}
-          </span>
+          <span className="font-bold text-gray-800">{ACCOUNT_NO}</span>
         </div>
 
         <div className="flex justify-between gap-3">
@@ -373,9 +422,7 @@ function PaymentContent() {
         </div>
 
         <div className="flex justify-between items-center gap-3">
-          <span className="text-gray-500">
-            Nội dung chuyển khoản:
-          </span>
+          <span className="text-gray-500">Nội dung chuyển khoản:</span>
 
           <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
             {transferContent}
@@ -384,8 +431,39 @@ function PaymentContent() {
       </div>
 
       <div className="flex items-center justify-center gap-2 text-amber-600 text-sm animate-pulse">
-        <span>⏳ Đang chờ hệ thống ghi nhận chuyển khoản...</span>
+        <span> Chờ chuyển khoản...</span>
       </div>
+      <div className="mt-4">
+        <button
+          onClick={handleCancelOrder}
+          disabled={isCancelling}
+          className="w-full py-2.5 bg-white border border-black rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white disabled:opacity-50 transition"
+        >
+          {isCancelling ? "Đang xử lý..." : "Hủy đơn hàng"}
+        </button>
+      </div>
+      {/* <div className="mt-8 border-t border-gray-100 pt-6">
+        <p className="text-sm text-gray-500 mb-4">
+          Hoặc thử nghiệm thanh toán nội bộ:
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={() => handleMockPayment("WALLET")}
+            disabled={isProcessing}
+            className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
+          >
+            {isProcessing ? "Đang xử lý..." : "Thanh toán Ví (MOCK)"}
+          </button>
+
+          <button
+            onClick={() => handleMockPayment("CARD")}
+            disabled={isProcessing}
+            className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
+          >
+            {isProcessing ? "Đang xử lý..." : "Thanh toán Thẻ (MOCK)"}
+          </button>
+        </div>
+      </div> */}
     </div>
   );
 }
@@ -394,11 +472,7 @@ export default function PaymentPage() {
   return (
     <main className="container mx-auto p-6 max-w-lg mt-8">
       <Suspense
-        fallback={
-          <div className="text-center p-8">
-            Đang tải trang...
-          </div>
-        }
+        fallback={<div className="text-center p-8">Đang tải trang...</div>}
       >
         <PaymentContent />
       </Suspense>

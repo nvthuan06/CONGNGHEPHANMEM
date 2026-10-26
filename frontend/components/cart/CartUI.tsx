@@ -1,4 +1,4 @@
-
+// frontend/components/cart/CartUI.tsx
 "use client";
 
 import { useState } from "react";
@@ -11,18 +11,9 @@ import { toppings } from "@/types/option";
 export default function Cart() {
   const router = useRouter();
 
-  const {
-    cartItems,
-    removeFromCart,
-    clearCart,
-    totalPrice,
-  } = useCart();
+  const { cartItems, removeFromCart, clearCart, totalPrice } = useCart();
 
-  const {
-    accessToken,
-    isAuthenticated,
-    logout,
-  } = useAuth();
+  const { accessToken, isAuthenticated, logout } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,7 +50,7 @@ export default function Cart() {
         item.productId <= 0 ||
         !item.size.trim() ||
         !Number.isInteger(item.quantity) ||
-        item.quantity < 1
+        item.quantity < 1,
     );
 
     if (invalidItem) {
@@ -70,9 +61,7 @@ export default function Cart() {
     setLoading(true);
 
     try {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL ??
-        "http://localhost:3001";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
       const response = await fetch(`${apiUrl}/orders`, {
         method: "POST",
@@ -87,15 +76,13 @@ export default function Cart() {
       if (response.status === 401) {
         logout();
         setError(
-          "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại."
+          "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
         );
         return;
       }
 
       if (!response.ok) {
-        setError(
-          `Không thể tạo đơn hàng (HTTP ${response.status}).`
-        );
+        setError(`Không thể tạo đơn hàng (HTTP ${response.status}).`);
         return;
       }
 
@@ -104,9 +91,7 @@ export default function Cart() {
       clearCart();
       router.push(`payments?orderId=${order.id}`);
     } catch {
-      setError(
-        "Không thể kết nối đến Backend. Vui lòng thử lại."
-      );
+      setError("Không thể kết nối đến Backend. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -125,14 +110,9 @@ export default function Cart() {
           </p>
         )}
 
-        <h2 className="text-2xl font-bold mb-4">
-          Giỏ hàng của bạn đang trống
-        </h2>
+        <h2 className="text-2xl font-bold mb-4">Giỏ hàng của bạn đang trống</h2>
 
-        <Link
-          href="/"
-          className="text-emerald-600 hover:underline"
-        >
+        <Link href="/" className="text-emerald-600 hover:underline">
           &larr; Quay lại Menu để chọn món
         </Link>
       </div>
@@ -147,10 +127,7 @@ export default function Cart() {
       </h1>
 
       {error && (
-        <p
-          role="alert"
-          className="mb-4 rounded-lg bg-red-50 p-4 text-red-700"
-        >
+        <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
           {error}
         </p>
       )}
@@ -188,16 +165,16 @@ export default function Cart() {
                       Size: {item.size} | Topping:{" "}
                       {item.toppings.length > 0
                         ? item.toppings
-                          .map(function (id) {
-                            const timTopping = toppings.find(
-                              function (topping) {
-                                return topping.id === id;
-                              }
-                            );
+                            .map(function (id) {
+                              const timTopping = toppings.find(
+                                function (topping) {
+                                  return topping.id === id;
+                                },
+                              );
 
-                            return timTopping?.name;
-                          })
-                          .join(", ")
+                              return timTopping?.name;
+                            })
+                            .join(", ")
                         : "Không"}
                     </p>
                   </div>
@@ -224,9 +201,7 @@ export default function Cart() {
         </ul>
 
         <div className="p-6 bg-gray-50 border-t flex justify-between items-center">
-          <span className="text-xl font-semibold">
-            Tổng cộng:
-          </span>
+          <span className="text-xl font-semibold">Tổng cộng:</span>
 
           <span className="text-2xl font-bold text-emerald-600">
             {totalPrice.toLocaleString("vi-VN")} đ
@@ -236,11 +211,7 @@ export default function Cart() {
 
       <div className="mt-6 flex justify-between gap-3">
         <button className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold text-lg disabled:opacity-50">
-          <Link
-          href="/"
-        >
-          Tiếp tục mua hàng
-        </Link>
+          <Link href="/">Tiếp tục mua hàng</Link>
         </button>
 
         <button
@@ -249,9 +220,7 @@ export default function Cart() {
           disabled={loading}
           className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold text-lg disabled:opacity-50"
         >
-          {loading
-            ? "Đang đặt hàng..."
-            : "Tiến hành Đặt hàng"}
+          {loading ? "Đang đặt hàng..." : "Tiến hành Đặt hàng"}
         </button>
       </div>
     </main>

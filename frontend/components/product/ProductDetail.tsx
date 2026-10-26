@@ -1,3 +1,4 @@
+// frontend/components/product/ProductDetail.tsx
 "use client";
 
 import { useEffect, useState } from "react";
