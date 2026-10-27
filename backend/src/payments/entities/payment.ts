@@ -19,8 +19,13 @@ export class Payment {
   orderId: number;
 
   // Để nullable: true ở Task 8, sang Task 10 sẽ dùng để chống thanh toán trùng
-  @Column({ nullable: true, unique: true })
-  idempotencyKey: string;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    unique: true,
+  })
+  idempotencyKey: string | null;
 
   @Column('float')
   amount: number;
