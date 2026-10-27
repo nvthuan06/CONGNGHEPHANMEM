@@ -39,6 +39,12 @@ export class OrdersController {
     return this.ordersService.getMyOrders(request.user.userId);
   }
 
+  @Get('loyalty/balance')
+  @UseGuards(JwtAuthGuard)
+  getLoyaltyBalance(@Req() request: AuthenticatedRequest) {
+    return this.ordersService.getLoyaltyBalance(request.user.userId);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(@Param('id', ParseIntPipe) id: number, @Req() request: any) {
