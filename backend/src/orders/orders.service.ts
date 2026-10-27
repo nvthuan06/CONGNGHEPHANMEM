@@ -38,6 +38,10 @@ export class OrdersService {
       throw new BadRequestException('Số điểm sử dụng không hợp lệ');
     }
 
+    if (pointsToRedeem > 0 && pointsToRedeem < 100) {
+      throw new BadRequestException('Cần sử dụng tối thiểu 100 điểm cho mỗi lần đổi');
+    }
+
     if (!orderDto.items?.length) {
       throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
     }
@@ -168,6 +172,15 @@ export class OrdersService {
       return manager.getRepository(Order).save(newOrder);
     });
   }
+  async getLoyaltyBalance(userId: number) {
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { id: userId },
+      select: { id: true, loyaltyPoints: true },
+    });
+    if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
+    return { loyaltyPoints: user.loyaltyPoints };
+  }
+
   async findOne(orderId: number, userId: number) {
     const order = await this.orderRepository.findOne({
       where: {
