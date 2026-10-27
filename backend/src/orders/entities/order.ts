@@ -16,8 +16,7 @@ export class Order {
 
   @Column('float')
   total: number; // Tổng tiền của chi tiết đơn hàng
-
-  // Tổng tiền sản phẩm trước khi giảm giá
+    // Tổng tiền sản phẩm trước khi giảm giá
   @Column({ type: 'int', default: 0 })
   subtotal: number;
 

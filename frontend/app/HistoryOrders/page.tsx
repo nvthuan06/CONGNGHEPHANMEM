@@ -15,6 +15,10 @@ export default function HistoryOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const { accessToken } = useAuth();
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const TOPPING_NAMES: Record<string, string> = {
+    tc: 'Trân châu',
+    kem: 'Kem',
+  };    
 
   useEffect(() => {
     async function QuyenOrder() {
@@ -149,15 +153,26 @@ export default function HistoryOrderPage() {
                 </span>
               </div>
               Tóm tắt danh sách món
-              <div className="text-xs text-gray-600 space-y-1 mb-3">
+              <div className="text-xs text-gray-600 space-y-1.5 mb-3">
                 {order.items && order.items.length > 0 ? (
                   order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between">
-                      <span>
-                        {item.product?.name || `Món #${item.productId}`} (
-                        {item.size}) x {item.qty}
-                      </span>
-                      <span>
+                    <div key={item.id} className="flex justify-between items-start">
+                      <div>
+                        <span className="font-medium text-gray-800">
+                          {item.product?.name || `Món #${item.productId}`} ({item.size}) x {item.qty}
+                        </span>
+                        
+                        {/* Hiển thị tên topping tự động từ file option dùng chung */}
+                        {item.toppings && item.toppings.length > 0 && (
+                          <p className="text-[11px] text-emerald-600 mt-0.5">
+                            Topping: {item.toppings.map((id) => {
+                              return TOPPING_NAMES[id] || id;
+                            }).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <span className="font-semibold text-gray-700">
                         {Number(item.lineTotal).toLocaleString("vi-VN")}đ
                       </span>
                     </div>

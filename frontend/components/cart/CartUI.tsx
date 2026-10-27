@@ -101,6 +101,7 @@ export default function Cart() {
       productId: Number(item.productId),
       size: item.size,
       quantity: item.quantity,
+      toppings: item.toppings || [],
     }));
 
     // Kiểm tra dữ liệu trước khi gửi
@@ -237,9 +238,9 @@ export default function Cart() {
                 </div>
 
                 <div className="text-right">
-                  <p className="font-bold text-emerald-600 mb-2">
-                    {(item.price * item.quantity).toLocaleString("vi-VN")} đ
-                  </p>
+                <p className="font-bold text-emerald-600 mb-2">
+                {(Number(item.price) * item.quantity).toLocaleString("vi-VN")} đ
+                </p>
 
                   <button
                     type="button"

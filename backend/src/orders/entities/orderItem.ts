@@ -18,6 +18,9 @@ export class OrderItem {
   @Column()
   size: string; // Size S, M, L
 
+  @Column('simple-json', { nullable: true })
+  toppings: string[];
+
   @Column()
   qty: number; // Số lượng
 

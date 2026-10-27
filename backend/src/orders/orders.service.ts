@@ -27,6 +27,10 @@ export class OrdersService {
 
     private readonly dataSource: DataSource,
   ) {}
+    private readonly TOPPING_INFO: Record<string, { name: string; price: number }> = {
+      tc: { name: 'Trân châu', price: 5000 },
+      kem: { name: 'Kem', price: 10000 },
+    };
 
   async create(orderDto: OrderDto, userId: number) {
     const pointsToRedeem = orderDto.pointsToRedeem ?? 0;
@@ -36,6 +40,41 @@ export class OrdersService {
       pointsToRedeem < 0
     ) {
       throw new BadRequestException('Số điểm sử dụng không hợp lệ');
+    }
+    let totalAmount = 0;
+    const itemsToSave = [];
+    for (const item of orderDto.items) {
+      const pd = await this.productRepository.findOne({
+        where: { id: item.productId },
+      });
+      let sizeExtra = 0;
+      const sizeUpper = item.size.trim().toUpperCase();
+      if (sizeUpper === 'M') sizeExtra = 5000;
+      if (sizeUpper === 'L') sizeExtra = 10000;
+      let toppingExtra = 0;
+      const validToppings: string[] = [];
+      const toppings = Array.isArray(item.toppings) ? item.toppings : [];
+
+      for (const toppingId of toppings) {
+        const code = String(toppingId).trim().toLowerCase();
+        const info = this.TOPPING_INFO[code];
+        if (info) {
+          toppingExtra += info.price;
+          validToppings.push(code);
+        }
+      }
+
+      const unitPrice = Number(pd?.price) + sizeExtra + toppingExtra;
+      const lineTotal = unitPrice * item.quantity;
+      totalAmount += lineTotal;
+
+      itemsToSave.push({
+        productId: pd?.id,
+        size: sizeUpper,
+        toppings: validToppings,
+        qty: item.quantity,
+        lineTotal: lineTotal,
+      });
     }
 
     if (pointsToRedeem > 0 && pointsToRedeem < 100) {
@@ -69,6 +108,7 @@ export class OrdersService {
         size: string;
         qty: number;
         lineTotal: number;
+        toppings: string[];
       }[] = [];
 
       // 2. Gộp sản phẩm trùng ID để kiểm tra tổng số lượng
@@ -116,7 +156,20 @@ export class OrdersService {
         const sizeExtra =
           sizeUpper === 'M' ? 5000 : sizeUpper === 'L' ? 10000 : 0;
 
-        const unitPrice = Number(product.price) + sizeExtra;
+        let toppingExtra = 0;
+        const validToppings: string[] = [];
+        const toppings = Array.isArray(item.toppings) ? item.toppings : [];
+
+        for (const toppingId of toppings) {
+          const code = String(toppingId).trim().toLowerCase();
+          const info = this.TOPPING_INFO[code];
+          if (info) {
+            toppingExtra += info.price;
+            validToppings.push(code);
+          }
+        }
+
+        const unitPrice = Number(product.price) + sizeExtra + toppingExtra;
         const lineTotal = unitPrice * item.quantity;
 
         subtotal += lineTotal;
@@ -126,6 +179,7 @@ export class OrdersService {
           size: sizeUpper,
           qty: item.quantity,
           lineTotal,
+          toppings: validToppings,
         });
       }
 

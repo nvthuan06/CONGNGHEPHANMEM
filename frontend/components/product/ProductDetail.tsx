@@ -72,7 +72,7 @@ export default function ProductDetail({ productID }: { productID: string }) {
   const totalPrice = Number(product.price || 0) + sizeExtra + toppingExtra;
 
   // Thêm vào giỏ
-  function handleAddToCart() {
+  function handleAddToCart() {2
     const cartItemId = `${product?.id}-${selectedSize}-${selectedToppings.join("-")}`;
 
     if (product) {

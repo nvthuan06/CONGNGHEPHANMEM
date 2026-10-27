@@ -4,6 +4,7 @@ export interface OrderItem {
   qty: number;
   lineTotal: number;
   productId:number;
+  toppings?: string[];
   product?: {
     name: string;
   };
