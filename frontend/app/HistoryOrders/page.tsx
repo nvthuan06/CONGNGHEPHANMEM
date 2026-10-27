@@ -14,6 +14,7 @@ export default function HistoryOrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { accessToken } = useAuth();
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   useEffect(() => {
     async function QuyenOrder() {
@@ -48,6 +49,33 @@ export default function HistoryOrderPage() {
     }
     QuyenOrder();
   }, []);
+  async function handleCancelOrder(orderId: number) {
+    if (!confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
+
+    setCancellingId(orderId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Không thể hủy đơn hàng");
+      }
+
+      // Ép giao diện cập nhật ngay lập tức: Đổi status đơn này thành CANCELLED
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "CANCELLED" } : order,
+        ),
+      );
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setCancellingId(null);
+    }
+  }
   return (
     <div className="w-full mx-auto min-h-screen bg-gray-50 p-4 font-sans">
       {/* Header */}
@@ -149,12 +177,23 @@ export default function HistoryOrderPage() {
               {/* Nút thanh toán lại nếu đơn bị thất bại hoặc đang chờ */}
               {(order.status === "PAYMENT_FAILED" ||
                 order.status === "PENDING") && (
-                <div className="mt-3 pt-2">
+                <div className="pt-2">
                   <button
                     onClick={() => router.push(`/payments?orderId=${order.id}`)}
-                    className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition"
+                    className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition"
                   >
                     Thanh toán
+                  </button>
+                </div>
+              )}
+              {order.status === "PAID" && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => handleCancelOrder(order.id)}
+                    disabled={cancellingId === order.id}
+                    className="w-full py-2 bg-white border rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white disabled:opacity-50 transition"
+                  >
+                    {cancellingId === order.id ? "Đang hủy..." : "Hủy đơn hàng"}
                   </button>
                 </div>
               )}

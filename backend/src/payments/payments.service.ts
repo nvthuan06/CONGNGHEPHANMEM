@@ -4,14 +4,15 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Payment } from "./entities/payment.js";
-import { Order } from "../orders/entities/order.js";
-import { CreatePaymentDto } from "./dto/create-payment.dto.js";
-import { MockPaymentService } from "./mock-payment.service.js";
-import { User } from "../users/entities/user.entity.js";
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Payment } from './entities/payment.js';
+import { Order } from '../orders/entities/order.js';
+import { CreatePaymentDto } from './dto/create-payment.dto.js';
+import { MockPaymentService } from './mock-payment.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class PaymentsService {
@@ -25,18 +26,111 @@ export class PaymentsService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly mockPaymentService: MockPaymentService,
+    private readonly dataSource: DataSource,
   ) {}
-  private async rewardPoints(userId: number, totalAmount: number) {
+  private async rewardPoints(userId: number, totalAmount: number) {  // sửa lại quy tắc tích điểm 1.000đ = 1 điểm.
     if (!userId) return;
+
     const user = await this.userRepo.findOne({
       where: { id: userId },
     });
+
     if (user) {
-      const pointsEarned = Math.floor(totalAmount / 10000);
+      // 1.000đ = 1 điểm
+      const pointsEarned = Math.floor(totalAmount / 1000);
+
       user.loyaltyPoints += pointsEarned;
+
       await this.userRepo.save(user);
-      this.logger.log(`Cộng ${pointsEarned} điểm cho user #${userId}`);
+
+      this.logger.log(
+        `Cộng ${pointsEarned} điểm cho user #${userId}`
+      );
     }
+  }
+
+  private async confirmPayment(
+    orderId: number,
+    amount: number,
+    method: string,
+    idempotencyKey?: string,
+  ) {
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const paymentRepo = manager.getRepository(Payment);
+      const userRepo = manager.getRepository(User);
+
+      // Khóa đơn hàng để tránh hai giao dịch cùng xác nhận
+      const order = await orderRepo.findOne({
+        where: { id: orderId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!order) {
+        throw new NotFoundException(
+          `Không tìm thấy đơn hàng #${orderId}`,
+        );
+      }
+
+      // Đơn đã thanh toán: không cộng điểm lần nữa
+      if (order.status === 'PAID') {
+        return {
+          success: true,
+          alreadyPaid: true,
+          orderId: order.id,
+          orderStatus: order.status,
+        };
+      }
+
+      if (!['PENDING', 'PAYMENT_FAILED'].includes(order.status)) {
+        throw new BadRequestException(
+          `Không thể thanh toán đơn hàng ở trạng thái ${order.status}`,
+        );
+      }
+
+      if (!Number.isFinite(amount) || amount < Number(order.total)) {
+        throw new BadRequestException(
+          'Số tiền thanh toán không đủ',
+        );
+      }
+
+      // Lưu thanh toán
+      const payment = paymentRepo.create({
+        orderId: order.id,
+        amount,
+        method,
+        idempotencyKey: idempotencyKey ?? null,
+        status: 'SUCCESS',
+      });
+
+      const savedPayment = await paymentRepo.save(payment);
+
+      // Xác nhận đơn hàng
+      order.status = 'PAID';
+      await orderRepo.save(order);
+
+      // 1.000đ thanh toán = 1 điểm
+      const pointsEarned = Math.floor(Number(order.total) / 1000);
+
+      if (order.userId && pointsEarned > 0) {
+        await userRepo.increment(
+          { id: order.userId },
+          'loyaltyPoints',
+          pointsEarned,
+        );
+      }
+
+      return {
+        success: true,
+        alreadyPaid: false,
+        orderId: order.id,
+        orderStatus: order.status,
+        paymentId: savedPayment.id,
+        amount: savedPayment.amount,
+        method: savedPayment.method,
+        pointsEarned,
+      };
+    });
   }
 
   async createPayment(dto: CreatePaymentDto) {
@@ -74,40 +168,62 @@ export class PaymentsService {
       dto.simulateFail,
     );
 
-    const payment = this.paymentRepo.create({
-      orderId: order.id,
-      amount: order.total,
-      method: dto.method,
-      idempotencyKey: dto.idempotencyKey,
-      status: mockResult.success ? "SUCCESS" : "FAILED",
-    });
-    await this.paymentRepo.save(payment);
-
     if (mockResult.success) {
-      order.status = "PAID";
-      await this.orderRepo.save(order);
-      await this.rewardPoints(order.userId, order.total);
-
-      return {
-        success: true,
-        message: "Thanh toán thành công",
-        orderId: order.id,
-        orderStatus: order.status,
-        paymentId: payment.id,
-        amount: payment.amount,
-        method: payment.method,
-      };
-    } else {
-      order.status = "PAYMENT_FAILED";
-      await this.orderRepo.save(order);
-
-      throw new BadRequestException({
-        success: false,
-        message: mockResult.errorMessage || "Thanh toán thất bại",
-        orderId: order.id,
-        orderStatus: order.status,
-      });
+      return await this.confirmPayment(
+        order.id,
+        Number(order.total),
+        dto.method,
+        dto.idempotencyKey,
+      );
     }
+
+    const failureResult = await this.dataSource.transaction(
+      async (manager) => {
+        const orderRepo = manager.getRepository(Order);
+        const paymentRepo = manager.getRepository(Payment);
+
+        const lockedOrder = await orderRepo.findOne({
+          where: { id: order.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!lockedOrder) {
+          throw new NotFoundException(
+            `Không tìm thấy đơn hàng #${order.id}`,
+          );
+        }
+
+        // Không cho thanh toán thất bại ghi đè đơn đã PAID hoặc CANCELLED
+        if (!['PENDING', 'PAYMENT_FAILED'].includes(lockedOrder.status)) {
+          throw new BadRequestException(
+            `Không thể ghi nhận thanh toán thất bại cho đơn ${lockedOrder.status}`,
+          );
+        }
+
+        const payment = paymentRepo.create({
+          orderId: lockedOrder.id,
+          amount: lockedOrder.total,
+          method: dto.method,
+          idempotencyKey: dto.idempotencyKey ?? null,
+          status: 'FAILED',
+        });
+
+        await paymentRepo.save(payment);
+
+        lockedOrder.status = 'PAYMENT_FAILED';
+        await orderRepo.save(lockedOrder);
+
+        return {
+          success: false,
+          message: mockResult.errorMessage || 'Thanh toán thất bại',
+          orderId: lockedOrder.id,
+          orderStatus: lockedOrder.status,
+        };
+      },
+    );
+
+    // Ném lỗi bên ngoài transaction để không rollback bản ghi thất bại
+    throw new BadRequestException(failureResult);
   }
 
   async handleSepayWebhook(data: any) {
@@ -156,30 +272,34 @@ export class PaymentsService {
       return { success: false, message: "Số tiền thanh toán không đủ" };
     }
 
-    // 4. Cập nhật trạng thái đơn hàng sang PAID
-    order.status = "PAID";
-    await this.orderRepo.save(order);
+    // 4. Xác nhận thanh toán qua transaction chung
+    if (!transactionId) {
+      this.logger.warn(
+        `[SePay Webhook] Thiếu mã giao dịch cho đơn #${orderId}`,
+      );
 
-    // 5. Lưu bản ghi thanh toán vào database
-    const payment = this.paymentRepo.create({
-      orderId: order.id,
-      amount: amountReceived,
-      method: "BANKING",
-      status: "SUCCESS",
-      idempotencyKey: transactionId
-        ? String(transactionId)
-        : `SEPAY_${Date.now()}`,
-    });
-    await this.paymentRepo.save(payment);
+      return {
+        success: false,
+        message: 'Thiếu mã giao dịch SePay',
+      };
+    }
+
+    const result = await this.confirmPayment(
+      order.id,
+      amountReceived,
+      'BANKING',
+      `SEPAY_${transactionId}`,
+    );
 
     this.logger.log(
-      `[SePay Webhook] Thanh toán thành công cho đơn hàng #${orderId}`,
+      `[SePay Webhook] Xử lý thanh toán đơn #${orderId}`,
     );
-    await this.rewardPoints(order.userId, order.total);
 
     return {
       success: true,
-      message: "Xác nhận thanh toán thành công",
+      message: result.alreadyPaid
+        ? 'Đơn hàng đã được thanh toán trước đó'
+        : 'Xác nhận thanh toán thành công',
       orderId: order.id,
     };
   }

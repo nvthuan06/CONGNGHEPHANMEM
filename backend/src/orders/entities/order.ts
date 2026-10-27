@@ -17,6 +17,18 @@ export class Order {
   @Column('float')
   total: number; // Tổng tiền của chi tiết đơn hàng
 
+  // Tổng tiền sản phẩm trước khi giảm giá
+  @Column({ type: 'int', default: 0 })
+  subtotal: number;
+
+  // Số điểm khách đã chọn sử dụng
+  @Column({ type: 'int', default: 0 })
+  pointsRedeemed: number;
+
+  // Số tiền được giảm nhờ điểm thưởng
+  @Column({ type: 'int', default: 0 })
+  discountAmount: number;
+
   @CreateDateColumn()
   createdAt: Date; // Ngày lập đơn hàng
 
