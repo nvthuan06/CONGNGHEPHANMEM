@@ -140,8 +140,8 @@ export class PaymentsService {
       });
       if (currentPayment) {
         return {
-          success: currentPayment.status === 'SUCCESS',
-          message: 'Giao dịch đã được xử lý trước đó',
+          success: currentPayment.status === "SUCCESS",
+          message: "Giao dịch đã được xử lý trước đó",
           orderId: currentPayment.orderId,
           paymentId: currentPayment.id,
         };
@@ -155,7 +155,7 @@ export class PaymentsService {
       throw new NotFoundException(`Không tìm thấy đơn hàng #${dto.orderId}`);
     }
 
-    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
+    if (order.status !== "PENDING" && order.status !== "PAYMENT_FAILED") {
       throw new BadRequestException(
         `Đơn hàng đang ở trạng thái ${order.status}, không thể thanh toán.`,
       );
@@ -232,8 +232,8 @@ export class PaymentsService {
     const { content, transferAmount, id: transactionId } = data;
 
     if (!content) {
-      this.logger.warn('[SePay Webhook] Bỏ qua: Nội dung chuyển khoản rỗng');
-      return { success: false, message: 'Nội dung chuyển khoản rỗng' };
+      this.logger.warn("[SePay Webhook] Bỏ qua: Nội dung chuyển khoản rỗng");
+      return { success: false, message: "Nội dung chuyển khoản rỗng" };
     }
 
     // 1. Tách orderId từ nội dung chuyển khoản (bắt các mẫu như DH18, DH 18, ORDER18)
@@ -242,7 +242,7 @@ export class PaymentsService {
       this.logger.warn(
         `[SePay Webhook] Bỏ qua: Không tìm thấy cú pháp mã đơn trong "${content}"`,
       );
-      return { success: false, message: 'Nội dung không chứa mã đơn hợp lệ' };
+      return { success: false, message: "Nội dung không chứa mã đơn hợp lệ" };
     }
 
     const orderId = Number(match[1]);
@@ -256,11 +256,11 @@ export class PaymentsService {
     }
 
     // 2. Kiểm tra nếu đơn hàng đã được xử lý thanh toán trước đó
-    if (order.status === 'PAID') {
+    if (order.status === "PAID") {
       this.logger.log(
         `[SePay Webhook] Đơn hàng #${orderId} đã được thanh toán trước đó`,
       );
-      return { success: true, message: 'Đơn hàng đã thanh toán' };
+      return { success: true, message: "Đơn hàng đã thanh toán" };
     }
 
     // 3. Đối soát số tiền thanh toán thực tế với tổng tiền đơn hàng
@@ -269,7 +269,7 @@ export class PaymentsService {
       this.logger.warn(
         `[SePay Webhook] Đơn hàng #${orderId} thiếu tiền: Cần ${order.total}, nhận ${amountReceived}`,
       );
-      return { success: false, message: 'Số tiền thanh toán không đủ' };
+      return { success: false, message: "Số tiền thanh toán không đủ" };
     }
 
     // 4. Xác nhận thanh toán qua transaction chung
