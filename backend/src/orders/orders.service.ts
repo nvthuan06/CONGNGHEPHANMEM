@@ -26,6 +26,16 @@ export class OrdersService {
       const pd = await this.productRepository.findOne({
         where: { id: item.productId },
       });
+      if (!pd) {
+        throw new NotFoundException(
+          `Không tìm thấy sản phẩm #${item.productId}`,
+        );
+      }
+      if (pd.stock < item.quantity) {
+        throw new BadRequestException(
+          `Sản phẩm "${pd.name}" chỉ còn ${pd.stock} sản phẩm trong kho, không đủ cung cấp ${item.quantity}.`,
+        );
+      }
       let sizeExtra = 0;
       const sizeUpper = item.size.trim().toUpperCase();
       if (sizeUpper === 'M') sizeExtra = 5000;
@@ -41,6 +51,9 @@ export class OrdersService {
         qty: item.quantity,
         lineTotal: lineTotal,
       });
+
+      pd.stock -= item.quantity;
+      await this.productRepository.save(pd);
     }
 
     // Tạo đơn hàng mới trong bộ nhớ tạm
@@ -70,16 +83,34 @@ export class OrdersService {
 
   // Hủy thanh toán
   async cancelOrder(orderId: number, userId: number) {
-    const order = await this.findOne(orderId, userId);
-
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId, userId: userId },
+      relations: {
+        items: {
+          product: true,
+        },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException(`Không tìm thấy đơn hàng #${orderId}`);
+    }
     // Chỉ cho phép hủy nếu đơn chưa thanh toán thành công
-    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
+    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED' && order.status !== 'PAID') {
       throw new BadRequestException(
         `Không thể hủy đơn hàng đang ở trạng thái ${order.status}`,
       );
     }
 
     order.status = 'CANCELLED';
+    for (const item of order.items) {
+      const product = await this.productRepository.findOne({
+        where: { id: item.productId },
+      });
+      if (product) {
+        product.stock += item.qty;
+        await this.productRepository.save(product);
+      }
+    }
     return await this.orderRepository.save(order);
   }
 
