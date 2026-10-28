@@ -5,13 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Order } from './entities/order.js';
 import { OrderDto } from './dto/order.dto.js';
 import { Product } from '../products/products.entity.js';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity.js';
 import { OrderItem } from './entities/orderItem.js';
+import { NguyenLieu } from '../NguyenLieu/Entities/nguyenlieu.entity.js';
 
 @Injectable()
 export class OrdersService {
@@ -86,7 +87,6 @@ export class OrdersService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      // 1. Khóa tài khoản để tránh dùng điểm đồng thời
       const user = await manager.getRepository(User).findOne({
         where: { id: userId },
         lock: { mode: 'pessimistic_write' },
@@ -116,24 +116,26 @@ export class OrdersService {
         ...new Set(orderDto.items.map((item) => item.productId)),
       ].sort((a, b) => a - b);
 
-      // Khóa sản phẩm theo thứ tự ID cố định
-      const products = new Map<number, Product>();
+      await manager.getRepository(Product).find({
+        where: { id: In(productIds) },
+        select: { id: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const productList = await manager.getRepository(Product).find({
+        where: { id: In(productIds) },
+        relations: { ingredients: { nguyenLieu: true } }, 
+      });
+      const products = new Map<number, Product>(productList.map(p => [p.id, p]));
+      for (const item of orderDto.items) {
+        const product = products.get(item.productId);
+        if (!product) throw new NotFoundException(`Không tìm thấy sản phẩm #${item.productId}`);
 
-      for (const productId of productIds) {
-        const product = await manager.getRepository(Product).findOne({
-          where: { id: productId },
-          lock: { mode: 'pessimistic_write' },
-        });
-
-        if (!product) {
-          throw new NotFoundException(
-            `Không tìm thấy sản phẩm #${productId}`,
+        if (product.stock < item.quantity) {
+          throw new BadRequestException(
+            `Xin lỗi, "${product.name}" chỉ còn ${product.stock} ly, không đủ để đặt ${item.quantity} ly.`
           );
         }
-
-        products.set(productId, product);
       }
-
       const requestedQuantities = new Map<number, number>();
 
       for (const item of orderDto.items) {
@@ -182,21 +184,6 @@ export class OrdersService {
           toppings: validToppings,
         });
       }
-
-      // 3. Kiểm tra và trừ tồn kho
-      for (const [productId, quantity] of requestedQuantities) {
-        const product = products.get(productId)!;
-
-        if (product.stock < quantity) {
-          throw new BadRequestException(
-            `Sản phẩm "${product.name}" chỉ còn ${product.stock} sản phẩm`,
-          );
-        }
-
-        product.stock -= quantity;
-        await manager.getRepository(Product).save(product);
-      }
-
       // 4. Quy đổi điểm: 1 điểm = 10đ
       const discountAmount = pointsToRedeem * 10;
 
@@ -280,25 +267,6 @@ export class OrdersService {
           `Không thể hủy đơn hàng ở trạng thái ${order.status}`,
         );
       }
-
-      // Hoàn tồn kho
-      const quantities = new Map<number, number>();
-
-      for (const item of order.items) {
-        quantities.set(
-          item.productId,
-          (quantities.get(item.productId) ?? 0) + item.qty,
-        );
-      }
-
-      for (const [productId, quantity] of [...quantities].sort(
-        (a, b) => a[0] - b[0],
-      )) {
-        await manager
-          .getRepository(Product)
-          .increment({ id: productId }, 'stock', quantity);
-      }
-
       // Hoàn điểm đã giữ khi tạo đơn
       if (order.pointsRedeemed > 0) {
         await manager.getRepository(User).increment(

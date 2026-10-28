@@ -4,25 +4,57 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './products.entity.js';
 
+
 @Injectable()
-export class ProductsService implements OnModuleInit {
+export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
   ) {}
 
-  // Chạy 1 lần khi app khởi động: nếu bảng rỗng thì thêm 4 sản phẩm mẫu
-  async onModuleInit(): Promise<void> {
+  async seedProducts(): Promise<void> {
     const count = await this.productsRepository.count();
     if (count > 0) return;
 
     await this.productsRepository.save([
-      { name: 'Cà phê sữa', price: 35000, imageUrl: '/images/ca-phe-sua.jpg', stock: 100 },
-      { name: 'Americano', price: 40000, imageUrl: '/images/americano.jpg', stock: 100 },
-      { name: 'Cappuccino', price: 45000, imageUrl: '/images/cappuccino.jpg', stock: 100 },
-      { name: 'Trà đào', price: 39000, imageUrl: '/images/tra-dao.jpg', stock: 100 },
+      { name: 'Cà phê sữa', price: 35000, imageUrl: '/images/ca-phe-sua.jpg', stock: 0 },
+      { name: 'Americano', price: 40000, imageUrl: '/images/americano.jpg', stock: 0 },
+      { name: 'Cappuccino', price: 45000, imageUrl: '/images/cappuccino.jpg', stock: 0 },
+      { name: 'Trà đào', price: 39000, imageUrl: '/images/tra-dao.jpg', stock: 0 },
     ]);
   }
+  async syncProductStock(productId: number): Promise<void> {
+    const product = await this.productsRepository.findOne({
+      where: { id: productId },
+      relations: { ingredients: { nguyenLieu: true } },
+    });
+    if (!product) return;
+    let minStock = Infinity;
+    const ingredients = product.ingredients ?? [];
+    if (ingredients.length === 0) {
+      minStock = 0;
+    } else {
+      for (const detail of ingredients) {
+        const tonKhoHienTai = detail.nguyenLieu.KhoiLuong;
+        const dinhMuc = detail.dinhluong;
+        const soLuongLamDuoc = Math.floor(tonKhoHienTai / dinhMuc);
+
+        if (soLuongLamDuoc < minStock) {
+          minStock = soLuongLamDuoc;
+        }
+      }
+    }
+    product.stock = minStock === Infinity ? 0 : minStock;
+    await this.productsRepository.save(product);
+  }
+  async syncAllProductsStock(): Promise<void> {
+    const products = await this.findAll();
+    for (const product of products) {
+      await this.syncProductStock(product.id);
+    }
+    console.log('Đã đồng bộ xong toàn bộ tồn kho!');
+  }
+  
 
   findAll(): Promise<Product[]> {
     return this.productsRepository.find({ order: { id: 'ASC' } });
@@ -36,7 +68,4 @@ export class ProductsService implements OnModuleInit {
     return product;
   }
 }
-  /*createOne(){
-    var product = new Product();
-    product.
-  }*/
+

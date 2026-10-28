@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ProductsModule } from './products/products.module.js';
+import { NguyenLieuModule } from './NguyenLieu/NguyenLieu.module.js';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { OrdersModule } from './orders/orders.module.js';
@@ -37,6 +38,7 @@ import { PaymentsModule } from './payments/payments.module.js';
       rootPath: join(import.meta.dirname, '..', 'images'),
       serveRoot: '/images', // Đường dẫn trên URL sẽ có dạng http://localhost:3001/images/...
     }),
+    NguyenLieuModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,13 +6,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Payment } from './entities/payment.js';
 import { Order } from '../orders/entities/order.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { MockPaymentService } from './mock-payment.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { DataSource } from 'typeorm';
+import { OrderItem } from '../orders/entities/orderItem.js';
+import { Product } from '../products/products.entity.js';
+import { NguyenLieu } from '../NguyenLieu/Entities/nguyenlieu.entity.js';
 
 @Injectable()
 export class PaymentsService {
@@ -108,6 +111,44 @@ export class PaymentsService {
       // Xác nhận đơn hàng
       order.status = 'PAID';
       await orderRepo.save(order);
+
+      const orderItems = await manager.getRepository(OrderItem).find({
+        where: { orderId: order.id }
+      });
+      if (orderItems.length > 0) {
+        const productIds = orderItems.map(item => item.productId);
+
+        await manager.getRepository(Product).find({
+          where: { id: In(productIds) },
+          select: { id: true },
+          lock: { mode: 'pessimistic_write' }
+        });
+
+        const productList = await manager.getRepository(Product).find({
+          where: { id: In(productIds) },
+          relations: { ingredients: { nguyenLieu: true } }
+        });
+        const products = new Map(productList.map(p => [p.id, p]));
+
+        // Lặp qua từng món trong đơn và trừ
+        for (const item of orderItems) {
+          const product = products.get(item.productId);
+          if (!product) continue;
+
+          product.stock = Math.max(0, product.stock - item.qty);
+          await manager.getRepository(Product).save(product);
+
+          const ingredients = product.ingredients ?? [];
+          for (const detail of ingredients) {
+            const nguyenLieu = detail.nguyenLieu;
+            const tongCanTru = detail.dinhluong * item.qty;
+
+            nguyenLieu.KhoiLuong = Math.max(0, nguyenLieu.KhoiLuong - tongCanTru);
+            await manager.getRepository(NguyenLieu).save(nguyenLieu);
+          }
+        }
+      }
+
 
       // 1.000đ thanh toán = 1 điểm
       const pointsEarned = Math.floor(Number(order.total) / 1000);
