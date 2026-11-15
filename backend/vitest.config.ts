@@ -9,5 +9,19 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/**/*.module.ts',
+        'src/main.ts',
+        'src/**/dto/**',
+        'src/**/entities/**',
+        'src/**/Entities/**',
+        'src/**/*.entity.ts',
+      ],
+    },
   },
 });
