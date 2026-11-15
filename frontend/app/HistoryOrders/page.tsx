@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { OrderItem } from "../../types/orderitem";
 import type { Order } from "../../types/order";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -45,14 +44,14 @@ export default function HistoryOrderPage() {
         }
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : []);
-      } catch (err: any) {
-        setError(err.message || "Đã có lỗi ");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Đã có lỗi ");
       } finally {
         setLoading(false);
       }
     }
     QuyenOrder();
-  }, []);
+  }, [accessToken]);
   async function handleCancelOrder(orderId: number) {
     if (!confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
 
@@ -74,8 +73,8 @@ export default function HistoryOrderPage() {
           order.id === orderId ? { ...order, status: "CANCELLED" } : order,
         ),
       );
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Không thể hủy đơn hàng");
     } finally {
       setCancellingId(null);
     }
