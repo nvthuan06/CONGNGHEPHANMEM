@@ -8,7 +8,12 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.useGlobalPipes(new ValidationPipe ());
-  app.enableCors({ origin: 'http://localhost:3000' });
+  // Local mặc định; production cấu hình CORS_ORIGIN bằng domain HTTPS thực tế.
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: allowedOrigins });
   app.useStaticAssets(join(process.cwd(), 'images'), { prefix: '/images' });
   await app.listen(process.env.PORT ?? 3001);
 }
