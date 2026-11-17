@@ -8,6 +8,9 @@ import { sizes, toppings } from "@/types/option";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 
+// Lấy link Backend từ biến môi trường, fallback về localhost nếu quên cài
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+
 export default function ProductDetail({ productID }: { productID: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +22,8 @@ export default function ProductDetail({ productID }: { productID: string }) {
   const { addToCart } = useCart();
   const router = useRouter();
 
-  const API_URL = `http://localhost:3001/products/${productID}`;
+  // SỬA Ở ĐÂY: Dùng biến BASE_URL thay vì localhost
+  const API_URL = `${BASE_URL}/products/${productID}`;
 
   useEffect(() => {
     fetch(API_URL)
@@ -71,8 +75,7 @@ export default function ProductDetail({ productID }: { productID: string }) {
   }, 0);
   const totalPrice = Number(product.price || 0) + sizeExtra + toppingExtra;
 
-  // Thêm vào giỏ
-  function handleAddToCart() {2
+  function handleAddToCart() {
     const cartItemId = `${product?.id}-${selectedSize}-${selectedToppings.join("-")}`;
 
     if (product) {
@@ -80,7 +83,7 @@ export default function ProductDetail({ productID }: { productID: string }) {
         cartItemId: cartItemId,
         productId: String(product.id),
         name: product.name,
-        price: totalPrice, // totalPrice đã được tính ở đoạn code cũ của bạn
+        price: totalPrice, 
         size: selectedSize,
         toppings: selectedToppings,
         quantity: 1,
@@ -100,8 +103,9 @@ export default function ProductDetail({ productID }: { productID: string }) {
         &larr; Quay lại Menu
       </Link>
       <div className="bg-white border rounded-xl p-6 shadow-sm">
+        {/* SỬA Ở ĐÂY: Dùng biến BASE_URL cho ảnh */}
         <img
-          src={`http://localhost:3001${product.imageUrl}`}
+          src={`${BASE_URL}${product.imageUrl}`}
           alt={product.name}
           className="w-full h-auto object-cover rounded-lg mb-4"
         />

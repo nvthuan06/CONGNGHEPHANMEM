@@ -5,13 +5,17 @@ import { useEffect, useState } from "react";
 import { Product } from "@/types/product";
 import { ProductCard } from "@/components/product/ProductCard";
 
+// Lấy link Backend từ biến môi trường, fallback về localhost
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+
 export default function Menu() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(function () {
-    fetch("http://localhost:3001/products")
+    // SỬA Ở ĐÂY: Dùng BASE_URL thay vì URL cứng
+    fetch(`${BASE_URL}/products`)
       .then(async function (response) {
         if (!response.ok) {
           throw new Error(`Lỗi gọi API (${response.status})`);

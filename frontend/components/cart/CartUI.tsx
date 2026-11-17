@@ -42,7 +42,9 @@ export default function Cart() {
   const loyaltyError = loyaltyReady ? loyaltyState.error : "";
   const pointsInput = pointsDraft.token === accessToken ? pointsDraft.value : "0";
   const setPointsInput = (value: string) => setPointsDraft({ token: accessToken, value });
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  
+  // SỬA Ở ĐÂY: Đổi thành NEXT_PUBLIC_API_BASE_URL cho đồng nhất với các file khác
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
   useEffect(() => {
     if (!accessToken) return;
@@ -222,8 +224,9 @@ export default function Cart() {
                 className="p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
+                  {/* SỬA Ở ĐÂY: Dùng biến apiUrl thay vì URL cứng */}
                   <img
-                    src={`http://localhost:3001${item.imageUrl}`}
+                    src={`${apiUrl}${item.imageUrl}`}
                     alt={item.name}
                     className="w-16 h-16 object-cover rounded-md"
                   />

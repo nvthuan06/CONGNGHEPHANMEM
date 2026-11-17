@@ -7,11 +7,15 @@ interface ProductCardProps {
   product: Product;
 }
 
+// Lấy link Backend từ biến môi trường, fallback về localhost
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+
 export function ProductCard({ product }: ProductCardProps) {
   return (
     <div className="border rounded-lg p-4 shadow-sm hover:shadow-md transition bg-white">
       <img
-        src={`http://localhost:3001${product.imageUrl}`}
+        // SỬA Ở ĐÂY: Thay localhost bằng BASE_URL
+        src={`${BASE_URL}${product.imageUrl}`}
         alt={product.name}
         className="w-100 h-100 object-cover rounded-md mb-3"
       />
