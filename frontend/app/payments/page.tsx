@@ -17,6 +17,23 @@ function PaymentContent() {
   const orderId = searchParams.get("orderId");
   const { accessToken } = useAuth();
 
+  // Mount lại khi đổi đơn hàng hoặc người dùng để không giữ state đơn hàng cũ.
+  return (
+    <PaymentDetails
+      key={`${orderId ?? "no-order"}:${accessToken ?? "anonymous"}`}
+      orderId={orderId}
+      accessToken={accessToken}
+    />
+  );
+}
+
+function PaymentDetails({
+  orderId,
+  accessToken,
+}: {
+  orderId: string | null;
+  accessToken: string | null;
+}) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,7 +69,7 @@ function PaymentContent() {
       }
       // Nếu thành công, cơ chế Polling 3s hiện tại của bạn sẽ tự động
       // lấy trạng thái PAID mới từ DB và chuyển sang màn hình xanh lá!
-    } catch (err: any) {
+    } catch {
       setError("Lỗi kết nối khi thanh toán");
     } finally {
       setIsProcessing(false);
@@ -67,19 +84,9 @@ function PaymentContent() {
 
   // Kiểm tra trạng thái đơn hàng từ Backend
   useEffect(() => {
-    if (!orderId) {
-      setOrder(null);
-      setError("Không tìm thấy mã đơn hàng.");
-      setLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setOrder(null);
-      setError("");
-      setLoading(false);
-      return;
-    }
+    // Phần JSX đã xử lý khi thiếu orderId/token.
+    // Không cập nhật state đồng bộ trong useEffect.
+    if (!orderId || !accessToken) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -135,10 +142,6 @@ function PaymentContent() {
         setLoading(false);
       }
     }
-
-    setOrder(null);
-    setError("");
-    setLoading(true);
 
     void fetchOrderStatus();
 
@@ -372,8 +375,8 @@ function PaymentContent() {
 
       // Ép giao diện cập nhật ngay lập tức sang CANCELLED
       setOrder((prev) => (prev ? { ...prev, status: "CANCELLED" } : null));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể hủy đơn hàng.");
     } finally {
       setIsCancelling(false);
     }

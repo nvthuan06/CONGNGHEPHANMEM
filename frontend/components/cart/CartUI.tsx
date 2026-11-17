@@ -11,6 +11,12 @@ import { toppings } from "@/types/option";
 const MIN_REDEEM_POINTS = 100;
 const VND_PER_POINT = 10;
 
+type LoyaltyState = {
+  token: string | null;
+  points: number | null;
+  error: string;
+};
+
 export default function Cart() {
   const router = useRouter();
 
@@ -20,23 +26,30 @@ export default function Cart() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
-  const [pointsInput, setPointsInput] = useState("0");
-  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
-  const [loyaltyError, setLoyaltyError] = useState("");
+  const [loyaltyState, setLoyaltyState] = useState<LoyaltyState>({
+    token: null,
+    points: null,
+    error: "",
+  });
+  const [pointsDraft, setPointsDraft] = useState({
+    token: null as string | null,
+    value: "0",
+  });
+  // Chỉ dùng điểm thuộc token hiện tại; token khác phải tải lại số dư.
+  const loyaltyReady = !!accessToken && loyaltyState.token === accessToken;
+  const loyaltyPoints = loyaltyReady ? loyaltyState.points : null;
+  const loyaltyLoading = !!accessToken && !loyaltyReady;
+  const loyaltyError = loyaltyReady ? loyaltyState.error : "";
+  const pointsInput = pointsDraft.token === accessToken ? pointsDraft.value : "0";
+  const setPointsInput = (value: string) => setPointsDraft({ token: accessToken, value });
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
   useEffect(() => {
-    if (!accessToken) {
-      setLoyaltyPoints(null);
-      setPointsInput("0");
-      return;
-    }
+    if (!accessToken) return;
+    const token = accessToken;
     const controller = new AbortController();
-    setLoyaltyLoading(true);
-    setLoyaltyError("");
     fetch(`${apiUrl}/orders/loyalty/balance`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
       signal: controller.signal,
     })
@@ -48,15 +61,17 @@ export default function Cart() {
         if (!Number.isSafeInteger(data.loyaltyPoints) || data.loyaltyPoints < 0) {
           throw new Error("Số dư điểm Loyalty không hợp lệ.");
         }
-        setLoyaltyPoints(data.loyaltyPoints);
+        if (!controller.signal.aborted) {
+          setLoyaltyState({ token, points: data.loyaltyPoints, error: "" });
+        }
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setLoyaltyPoints(null);
-        setLoyaltyError(err instanceof Error ? err.message : "Không tải được điểm.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoyaltyLoading(false);
+        setLoyaltyState({
+          token,
+          points: null,
+          error: err instanceof Error ? err.message : "Không tải được điểm.",
+        });
       });
     return () => controller.abort();
   }, [accessToken, apiUrl]);
