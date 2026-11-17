@@ -25,7 +25,10 @@ import { PaymentsModule } from './payments/payments.module.js';
           'postgresql://brewlite:brewlite@localhost:5432/brewlite',
         ),
         autoLoadEntities: true,
-        synchronize: true, // chỉ dùng khi phát triển: tự tạo bảng theo entity
+        synchronize: true,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       }),
     }),
     ProductsModule,
