@@ -28,54 +28,17 @@ export class OrdersService {
 
     private readonly dataSource: DataSource,
   ) {}
-    private readonly TOPPING_INFO: Record<string, { name: string; price: number }> = {
-      tc: { name: 'Trân châu', price: 5000 },
-      kem: { name: 'Kem', price: 10000 },
-    };
+  
+  private readonly TOPPING_INFO: Record<string, { name: string; price: number }> = {
+    tc: { name: 'Trân châu', price: 5000 },
+    kem: { name: 'Kem', price: 10000 },
+  };
 
   async create(orderDto: OrderDto, userId: number) {
     const pointsToRedeem = orderDto.pointsToRedeem ?? 0;
 
-    if (
-      !Number.isSafeInteger(pointsToRedeem) ||
-      pointsToRedeem < 0
-    ) {
+    if (!Number.isSafeInteger(pointsToRedeem) || pointsToRedeem < 0) {
       throw new BadRequestException('Số điểm sử dụng không hợp lệ');
-    }
-    let totalAmount = 0;
-    const itemsToSave = [];
-    for (const item of orderDto.items) {
-      const pd = await this.productRepository.findOne({
-        where: { id: item.productId },
-      });
-      let sizeExtra = 0;
-      const sizeUpper = item.size.trim().toUpperCase();
-      if (sizeUpper === 'M') sizeExtra = 5000;
-      if (sizeUpper === 'L') sizeExtra = 10000;
-      let toppingExtra = 0;
-      const validToppings: string[] = [];
-      const toppings = Array.isArray(item.toppings) ? item.toppings : [];
-
-      for (const toppingId of toppings) {
-        const code = String(toppingId).trim().toLowerCase();
-        const info = this.TOPPING_INFO[code];
-        if (info) {
-          toppingExtra += info.price;
-          validToppings.push(code);
-        }
-      }
-
-      const unitPrice = Number(pd?.price) + sizeExtra + toppingExtra;
-      const lineTotal = unitPrice * item.quantity;
-      totalAmount += lineTotal;
-
-      itemsToSave.push({
-        productId: pd?.id,
-        size: sizeUpper,
-        toppings: validToppings,
-        qty: item.quantity,
-        lineTotal: lineTotal,
-      });
     }
 
     if (pointsToRedeem > 0 && pointsToRedeem < 100) {
@@ -85,6 +48,7 @@ export class OrdersService {
     if (!orderDto.items?.length) {
       throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
     }
+
 
     return this.dataSource.transaction(async (manager) => {
       const user = await manager.getRepository(User).findOne({
@@ -111,31 +75,53 @@ export class OrdersService {
         toppings: string[];
       }[] = [];
 
-      // 2. Gộp sản phẩm trùng ID để kiểm tra tổng số lượng
       const productIds = [
         ...new Set(orderDto.items.map((item) => item.productId)),
       ].sort((a, b) => a - b);
 
-      await manager.getRepository(Product).find({
-        where: { id: In(productIds) },
-        select: { id: true },
-        lock: { mode: 'pessimistic_write' },
-      });
       const productList = await manager.getRepository(Product).find({
         where: { id: In(productIds) },
         relations: { ingredients: { nguyenLieu: true } }, 
       });
       const products = new Map<number, Product>(productList.map(p => [p.id, p]));
+
+      const dinhLuongTrongGioHang = new Map<number, number>();
+      
       for (const item of orderDto.items) {
         const product = products.get(item.productId);
         if (!product) throw new NotFoundException(`Không tìm thấy sản phẩm #${item.productId}`);
 
-        if (product.stock < item.quantity) {
-          throw new BadRequestException(
-            `Xin lỗi, "${product.name}" chỉ còn ${product.stock} ly, không đủ để đặt ${item.quantity} ly.`
-          );
+        if (product.ingredients) {
+          for (const dm of product.ingredients) {
+            const nguyenLieuId = dm.nguyenLieu.id;
+            const slCanDung = dm.dinhluong * item.quantity; // Phải nhân với item.quantity
+            
+            const currentTotal = dinhLuongTrongGioHang.get(nguyenLieuId) ?? 0;
+            dinhLuongTrongGioHang.set(nguyenLieuId, currentTotal + slCanDung);
+          }
         }
       }
+
+      // SỬA ĐIỂM 3: Kiểm tra và trừ trực tiếp kho của NGUYÊN LIỆU (Đã xóa trừ kho Product)
+      for (const [nguyenLieuId, slCanDung] of dinhLuongTrongGioHang.entries()) {
+        const nguyenLieu = await manager.getRepository(NguyenLieu).findOne({
+          where: { id: nguyenLieuId },
+          lock: { mode: 'pessimistic_write' }, // Khóa nguyên liệu lại
+        });
+
+        if (!nguyenLieu) throw new NotFoundException(`Không tìm thấy nguyên liệu #${nguyenLieuId}`);
+
+        if (nguyenLieu.KhoiLuong < slCanDung) {
+          throw new BadRequestException(
+            `Xin lỗi, quán không đủ "${nguyenLieu.name}" để pha chế toàn bộ đơn hàng. Vui lòng giảm số lượng.`
+          );
+        }
+
+        // Trừ kho nguyên liệu và lưu lại
+        nguyenLieu.KhoiLuong -= slCanDung;
+        await manager.getRepository(NguyenLieu).save(nguyenLieu);
+      }
+
       const requestedQuantities = new Map<number, number>();
 
       for (const item of orderDto.items) {
@@ -184,6 +170,7 @@ export class OrdersService {
           toppings: validToppings,
         });
       }
+      
       // 4. Quy đổi điểm: 1 điểm = 10đ
       const discountAmount = pointsToRedeem * 10;
 
@@ -213,6 +200,7 @@ export class OrdersService {
       return manager.getRepository(Order).save(newOrder);
     });
   }
+
   async getLoyaltyBalance(userId: number) {
     const user = await this.dataSource.getRepository(User).findOne({
       where: { id: userId },

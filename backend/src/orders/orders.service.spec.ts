@@ -5,17 +5,24 @@ import { Order } from './entities/order.js';
 import { OrderItem } from './entities/orderItem.js';
 import { Product } from '../products/products.entity.js';
 import { User } from '../users/entities/user.entity.js';
+// BỔ SUNG: Import NguyenLieu Entity
+import { NguyenLieu } from '../NguyenLieu/Entities/nguyenlieu.entity.js';
 
 describe('OrdersService (transaction/repository mocks; không cần DB)', () => {
   const orderRepo = { findOne: vi.fn(), find: vi.fn(), create: vi.fn(), save: vi.fn() };
   const productRepo = { findOne: vi.fn(), find: vi.fn() };
   const userRepo = { findOne: vi.fn(), save: vi.fn(), increment: vi.fn() };
   const itemsRepo = { find: vi.fn() };
+  
+  // BỔ SUNG: Khởi tạo repo giả cho NguyenLieu
+  const nguyenLieuRepo = { findOne: vi.fn(), save: vi.fn() }; 
+
   const manager = { getRepository: vi.fn((entity: any) => {
     if (entity === Order) return orderRepo;
     if (entity === Product) return productRepo;
     if (entity === User) return userRepo;
     if (entity === OrderItem) return itemsRepo;
+    if (entity === NguyenLieu) return nguyenLieuRepo; // BỔ SUNG: Trả về nguyenLieuRepo
     throw new Error(`Unmocked repository ${entity?.name}`);
   }) };
   const dataSource = {
@@ -24,6 +31,7 @@ describe('OrdersService (transaction/repository mocks; không cần DB)', () => 
   };
   const service = new OrdersService(orderRepo as any, productRepo as any, userRepo as any, dataSource as any);
   const dto = (overrides: Record<string, any> = {}): any => ({
+    // Đặt 2 ly size M
     items: [{ productId: 1, size: 'M', quantity: 2, toppings: ['tc'] }],
     pointsToRedeem: 0,
     ...overrides,
@@ -31,9 +39,22 @@ describe('OrdersService (transaction/repository mocks; không cần DB)', () => 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    const product = { id: 1, name: 'Cà phê sữa', price: 35000, stock: 20, ingredients: [] };
+    
+    // SỬA: Bỏ stock của product, thêm ingredients với định lượng
+    const product = { 
+      id: 1, 
+      name: 'Cà phê sữa', 
+      price: 35000, 
+      ingredients: [
+        { dinhluong: 50, nguyenLieu: { id: 101, name: 'Sữa tươi' } }
+      ] 
+    };
     productRepo.findOne.mockResolvedValue(product);
     productRepo.find.mockResolvedValue([product]);
+    const mockNguyenLieu = { id: 101, name: 'Sữa tươi', KhoiLuong: 500 };
+    nguyenLieuRepo.findOne.mockResolvedValue(mockNguyenLieu);
+    nguyenLieuRepo.save.mockImplementation(async (value: any) => value);
+
     userRepo.findOne.mockResolvedValue({ id: 7, loyaltyPoints: 2000 });
     userRepo.save.mockImplementation(async (value: any) => value);
     orderRepo.create.mockImplementation((value: any) => value);
@@ -73,10 +94,11 @@ describe('OrdersService (transaction/repository mocks; không cần DB)', () => 
     await expect(service.create(dto(), 7)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('từ chối sản phẩm không đủ tồn kho', async () => {
-    const insufficient = { id: 1, name: 'Cà phê sữa', price: 35000, stock: 1, ingredients: [] };
-    productRepo.find.mockResolvedValue([insufficient]);
+  it('từ chối khi nguyên liệu không đủ tồn kho', async () => {
+    nguyenLieuRepo.findOne.mockResolvedValue({ id: 101, name: 'Sữa tươi', KhoiLuong: 40 });
+    
     await expect(service.create(dto(), 7)).rejects.toBeInstanceOf(BadRequestException);
+    expect(nguyenLieuRepo.save).not.toHaveBeenCalled();
   });
 
   it.each([0, -2, 1.5])('từ chối số lượng không hợp lệ (%s)', async (quantity) => {
@@ -92,14 +114,18 @@ describe('OrdersService (transaction/repository mocks; không cần DB)', () => 
     await expect(service.create(dto({ pointsToRedeem: 10000 }), 7)).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('tính giá size M, topping, trừ điểm và lưu đơn PENDING', async () => {
+  it('tính giá size M, topping, trừ điểm, lưu kho nguyên liệu và lưu đơn PENDING', async () => {
     const result = await service.create(dto({ pointsToRedeem: 100 }), 7);
     expect(result).toMatchObject({
       userId: 7, status: 'PENDING', subtotal: 90000,
       pointsRedeemed: 100, discountAmount: 1000, total: 89000,
       items: [{ productId: 1, size: 'M', qty: 2, lineTotal: 90000, toppings: ['tc'] }],
     });
+    
     expect(userRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 7, loyaltyPoints: 1900 }));
+
+    expect(nguyenLieuRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 101, KhoiLuong: 400 }));
+    
     expect(orderRepo.save).toHaveBeenCalledOnce();
   });
 
