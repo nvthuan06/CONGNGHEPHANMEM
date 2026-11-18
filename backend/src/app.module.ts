@@ -26,9 +26,9 @@ import { PaymentsModule } from './payments/payments.module.js';
         ),
         autoLoadEntities: true,
         synchronize: true,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: process.env.NODE_ENV === 'production' 
+          ? { rejectUnauthorized: false } 
+          : false,
       }),
     }),
     ProductsModule,
