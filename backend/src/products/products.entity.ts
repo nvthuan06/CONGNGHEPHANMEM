@@ -20,6 +20,5 @@ export class Product {
   stock!: number;
 
   @OneToMany(() => ChiTietNguyenLieu, (chiTiet) => chiTiet.product)
-  // SỬA Ở ĐÂY: Bọc mảng ChiTietNguyenLieu trong Relation<>
   ingredients: Relation<ChiTietNguyenLieu>[];
 }

@@ -116,10 +116,6 @@ export class OrdersService {
             `Xin lỗi, quán không đủ "${nguyenLieu.name}" để pha chế toàn bộ đơn hàng. Vui lòng giảm số lượng.`
           );
         }
-
-        // Trừ kho nguyên liệu và lưu lại
-        nguyenLieu.KhoiLuong -= slCanDung;
-        await manager.getRepository(NguyenLieu).save(nguyenLieu);
       }
 
       const requestedQuantities = new Map<number, number>();
