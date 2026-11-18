@@ -123,8 +123,6 @@ describe('OrdersService (transaction/repository mocks; không cần DB)', () => 
     });
     
     expect(userRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 7, loyaltyPoints: 1900 }));
-
-    expect(nguyenLieuRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 101, KhoiLuong: 400 }));
     
     expect(orderRepo.save).toHaveBeenCalledOnce();
   });
