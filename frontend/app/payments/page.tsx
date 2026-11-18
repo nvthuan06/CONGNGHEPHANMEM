@@ -80,7 +80,7 @@ function PaymentDetails({
   const ACCOUNT_NO = "0000000002";
   const ACCOUNT_NAME = "NGUYEN VU THUAN";
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
   // Kiểm tra trạng thái đơn hàng từ Backend
   useEffect(() => {
