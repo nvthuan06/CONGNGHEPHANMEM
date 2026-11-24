@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PaymentsService } from './payments.service.js';
 import { MockPaymentService } from './mock-payment.service.js';
 import { Order } from '../orders/entities/order.js';
@@ -59,6 +59,18 @@ describe('PaymentsService (transaction/repository mocks; không cần DB)', () =
     orderRepo.findOne.mockResolvedValue(null);
     await expect(service.createPayment(dto())).rejects.toBeInstanceOf(NotFoundException);
     expect(mockPayment.processPayment).not.toHaveBeenCalled();
+  });
+
+  it('ngăn chặn user A thanh toán đơn hàng của user B', async () => {
+    orderRepo.findOne.mockResolvedValue({ id: 3, userId: 7, status: 'PENDING', total: 25000 });
+    await expect(service.createPayment(dto(), 99)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(mockPayment.processPayment).not.toHaveBeenCalled();
+  });
+
+  it('cho phép chủ đơn hàng thanh toán đơn của mình', async () => {
+    orderRepo.findOne.mockResolvedValue({ id: 3, userId: 7, status: 'PENDING', total: 25000 });
+    const result = await service.createPayment(dto(), 7);
+    expect(result).toMatchObject({ success: true, orderId: 3 });
   });
 
   it('không tạo thanh toán mới cho đơn CANCELLED', async () => {

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -174,7 +175,19 @@ export class PaymentsService {
     });
   }
 
-  async createPayment(dto: CreatePaymentDto) {
+  async createPayment(dto: CreatePaymentDto, userId?: number) {
+    const order = await this.orderRepo.findOne({
+      where: { id: dto.orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Không tìm thấy đơn hàng #${dto.orderId}`);
+    }
+
+    if (userId !== undefined && order.userId !== userId) {
+      throw new ForbiddenException('Bạn không có quyền thanh toán đơn hàng này');
+    }
+
     if (dto.idempotencyKey) {
       const currentPayment = await this.paymentRepo.findOne({
         where: { idempotencyKey: dto.idempotencyKey },
@@ -187,13 +200,6 @@ export class PaymentsService {
           paymentId: currentPayment.id,
         };
       }
-    }
-    const order = await this.orderRepo.findOne({
-      where: { id: dto.orderId },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Không tìm thấy đơn hàng #${dto.orderId}`);
     }
 
     if (order.status !== "PENDING" && order.status !== "PAYMENT_FAILED") {
