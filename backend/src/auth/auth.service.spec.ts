@@ -23,6 +23,23 @@ describe('AuthService (mock UsersService/JwtService)', () => {
     expect(users.create).not.toHaveBeenCalled();
   });
 
+  it('từ chối email dài hơn 255 ký tự', async () => {
+    const longEmail = 'a'.repeat(250) + '@example.com';
+    await expect(service.register({ email: longEmail, password: 'password123' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.create).not.toHaveBeenCalled();
+  });
+
+  it('từ chối khi body register không phải object hoặc thiếu (text/plain)', async () => {
+    await expect(service.register(undefined as any)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.register('raw string' as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.create).not.toHaveBeenCalled();
+  });
+
+  it('từ chối khi email register là object ($ne)', async () => {
+    await expect(service.register({ email: { $ne: null } as any, password: 'password123' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.create).not.toHaveBeenCalled();
+  });
+
   it('từ chối mật khẩu ngắn hoặc thiếu', async () => {
     await expect(service.register({ email: 'a@example.com', password: '123' })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.register({ email: 'a@example.com', password: undefined as any })).rejects.toBeInstanceOf(BadRequestException);
@@ -52,6 +69,17 @@ describe('AuthService (mock UsersService/JwtService)', () => {
   it('từ chối login thiếu email hoặc mật khẩu', async () => {
     await expect(service.login({ email: '', password: 'password123' })).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(service.login({ email: 'a@example.com', password: undefined as any })).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(users.findByEmailWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('từ chối khi body login không phải object hoặc thiếu (text/plain)', async () => {
+    await expect(service.login(undefined as any)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.login('raw string' as any)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(users.findByEmailWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('từ chối khi email login là object ($ne)', async () => {
+    await expect(service.login({ email: { $ne: null } as any, password: 'password123' })).rejects.toBeInstanceOf(UnauthorizedException);
     expect(users.findByEmailWithPassword).not.toHaveBeenCalled();
   });
 

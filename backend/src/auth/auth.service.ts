@@ -19,10 +19,18 @@ export class AuthService {
     ) { }
 
     async register(registerDto: RegisterDto) {
-        const email = registerDto.email?.trim().toLowerCase();
+        if (!registerDto || typeof registerDto !== 'object' || Array.isArray(registerDto)) {
+            throw new BadRequestException('Dữ liệu không hợp lệ');
+        }
+
+        if (typeof registerDto.email !== 'string') {
+            throw new BadRequestException('Email không hợp lệ');
+        }
+
+        const email = registerDto.email.trim().toLowerCase();
         const password = registerDto.password;
 
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!email || email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             throw new BadRequestException('Email không hợp lệ');
         }
 
@@ -55,10 +63,25 @@ export class AuthService {
 
 
     async login(loginDto: LoginDto) {
-        const email = loginDto?.email?.trim().toLowerCase();
-        const password = loginDto?.password;
+        if (!loginDto || typeof loginDto !== 'object' || Array.isArray(loginDto)) {
+            throw new UnauthorizedException(
+                'Email hoặc mật khẩu không chính xác',
+            );
+        }
 
-        if (!email || typeof password !== 'string') {
+        if (
+            typeof loginDto.email !== 'string' ||
+            typeof loginDto.password !== 'string'
+        ) {
+            throw new UnauthorizedException(
+                'Email hoặc mật khẩu không chính xác',
+            );
+        }
+
+        const email = loginDto.email.trim().toLowerCase();
+        const password = loginDto.password;
+
+        if (!email || email.length > 255) {
             throw new UnauthorizedException(
                 'Email hoặc mật khẩu không chính xác',
             );
